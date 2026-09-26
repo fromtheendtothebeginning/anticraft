@@ -523,11 +523,13 @@ class DektClient:
         except requests.exceptions.RequestException:
             raise DektError("教务系统响应超时，请重试")
         if resp.status_code == 302:
+            print(f"[kbcx] session invalid (302), zs={zs}", flush=True)
             self.jwxt_session = None
             raise DektError("教务登录已失效，请重新导入")
         j = self._parse_response(resp)
         if not isinstance(j, dict) or not isinstance(j.get("rqazcList"), list) or not j.get("rqazcList"):
             # 超出学期范围等情况下日期安排为空，前端据此停止逐周遍历
+            print(f"[kbcx] unexpected response (status={resp.status_code}, zs={zs}, xnm={xnm}, xqm={xqm}): {str(resp.text)[:300]}", flush=True)
             raise DektError("该周没有课表数据（可能已超出学期范围）")
         courses = []
         for it in j.get("kbList") or []:
@@ -553,6 +555,7 @@ class DektClient:
                 "slotEnd": slot_end,
             })
         xsxx = j.get("xsxx") or {}
+        print(f"[kbcx] week {zs} ok: {len(courses)} courses", flush=True)
         return {
             "courses": courses,
             "dates": [{"xqj": d.get("xqj"), "rq": d.get("rq")} for d in j["rqazcList"]],
