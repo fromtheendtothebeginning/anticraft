@@ -1,0 +1,904 @@
+/* 课程表页 —— 跟随全局主题变量（深浅色均用半透明色相叠在卡色上） */
+
+.tt-page [data-hue='0'] { --tt-hue: 258; }
+.tt-page [data-hue='1'] { --tt-hue: 174; }
+.tt-page [data-hue='2'] { --tt-hue: 25; }
+.tt-page [data-hue='3'] { --tt-hue: 145; }
+.tt-page [data-hue='4'] { --tt-hue: 335; }
+
+/* ── 工具栏 ── */
+.tt-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.tt-navbtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.tt-navbtn:hover:not(:disabled) {
+  border-color: var(--accent-1);
+  color: var(--accent-1);
+}
+
+.tt-navbtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* 周次标签本身是按钮：点击回到今天（不在本周时带提示点） */
+.tt-weeklabel {
+  position: relative;
+  min-width: 86px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary);
+  background: transparent;
+  border: none;
+  padding: 4px 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.tt-weeklabel:hover {
+  color: var(--accent-1);
+}
+
+.tt-today-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-left: 5px;
+  border-radius: 50%;
+  background: var(--accent-1);
+  vertical-align: 2px;
+}
+
+.tt-viewtoggle {
+  display: flex;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg-card);
+}
+
+.tt-viewtoggle button {
+  border: none;
+  background: transparent;
+  padding: 7px 14px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tt-viewtoggle button.active {
+  background: var(--accent-1);
+  color: var(--white);
+}
+
+.tt-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.tt-addbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 图标按钮（学期设置等）：36px 见方，触控友好 */
+.tt-iconbtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.tt-iconbtn:hover {
+  border-color: var(--accent-1);
+  color: var(--accent-1);
+}
+
+/* 开关型图标按钮（如「显示上课时间」）的启用态 */
+.tt-iconbtn.active {
+  border-color: var(--accent-1);
+  color: var(--accent-1);
+  background: var(--accent-1-soft);
+}
+
+/* ── 周视图网格（始终占满宽度，横向滑动留给切周手势） ── */
+.tt-weekwrap {
+  max-width: 480px;
+  margin: 0 auto;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-card);
+  touch-action: pan-y;
+}
+
+.tt-weekgrid {
+  /* 列 ~64px、行 96px ≈ 小应(NoXiaoYing)的 1:1.5 竖版格子；每节再静默分 10 份给日程精确定位 */
+  --tt-slot-h: 96px;
+  --tt-sub-h: calc(var(--tt-slot-h) / 10);
+  display: grid;
+  grid-template-columns: 32px repeat(7, minmax(0, 1fr));
+  /* 表头 + 上午带 + 第1-4节(40份) + 11:55细线 + 下午带 + 第5-8节(40份) + 晚上带 + 第9-11节(30份) */
+  grid-template-rows: 46px 22px repeat(40, var(--tt-sub-h)) 12px 22px repeat(40, var(--tt-sub-h)) 22px repeat(30, var(--tt-sub-h));
+}
+
+/* 11:55 细线：另一套中午作息的下课边界（在第 4 节与下午色带之间） */
+.tt-noonline {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  font-size: 9px;
+  color: var(--text-muted);
+  border-top: 1px dashed var(--border-color);
+  background: var(--bg-card);
+}
+
+.tt-noonline span {
+  flex-shrink: 0;
+}
+
+.tt-noonline::after {
+  content: '';
+  flex: 1;
+  border-top: 1px dashed var(--border-color);
+}
+
+.tt-corner {
+  grid-column: 1;
+  grid-row: 1;
+  background: var(--bg-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: var(--text-muted);
+  padding: 2px;
+  word-break: break-all;
+  overflow: hidden;
+  border-right: 1px solid var(--border-color);
+}
+
+/* 时段色带：贯穿整行的浅底分组（上午/下午/晚上），跨时段的课会自然压在上面 */
+.tt-secrow {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  background: var(--bg-primary);
+  border-top: 1px solid var(--border-color);
+}
+
+.tt-secrow span {
+  flex-shrink: 0;
+}
+
+.tt-secrow::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-color);
+}
+
+.tt-dayhead {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  border-left: 1px dashed var(--border-color);
+  color: var(--text-secondary);
+}
+
+.tt-dayhead.today {
+  background: var(--accent-1-soft-strong);
+  color: var(--accent-1);
+}
+
+.tt-dayhead-w {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tt-dayhead-d {
+  font-size: 11px;
+  opacity: 0.75;
+}
+
+.tt-slotnum {
+  background: var(--bg-card);
+  border-right: 1px solid var(--border-color);
+  border-top: 1px dashed var(--border-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  color: var(--text-muted);
+  padding: 2px 0;
+  overflow: hidden;
+}
+
+.tt-slotnum-n {
+  font-size: 12px;
+  line-height: 1.1;
+}
+
+/* 节次开始时间（「显示上课时间」开启时） */
+.tt-slotnum-n {
+  font-size: 12px;
+  line-height: 1.1;
+  font-weight: 600;
+}
+
+/* 节次的上课/下课时间（WakeUp 式：号码上下各一行小字） */
+.tt-slotnum-t {
+  font-size: 9px;
+  line-height: 1.1;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.tt-slotnum-t.end {
+  opacity: 0.65;
+}
+
+.tt-slotnum.first {
+  border-top: none;
+}
+
+.tt-blank {
+  border-left: 1px dashed var(--border-color);
+  border-top: 1px dashed var(--border-color);
+}
+
+.tt-blank.first {
+  border-top: none;
+}
+
+/* 空格子纯视觉（画节次下课虚线），不能拦截点在日程卡上的点击 */
+.tt-blank {
+  pointer-events: none;
+}
+
+/* 日程卡（与课程卡区分：青色 + 虚线框） */
+.tt-event {
+  margin: 2px;
+  border: 1px dashed var(--accent-2);
+  border-left: 3px solid var(--accent-2);
+  border-radius: 8px;
+  padding: 3px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  overflow: hidden;
+  cursor: pointer;
+  text-align: center;
+  background: var(--accent-2-soft);
+  color: var(--text-primary);
+  transition: filter 0.15s;
+}
+
+.tt-event:hover {
+  filter: brightness(1.06);
+}
+
+.tt-event-name {
+  flex: 1 1 0;
+  min-height: 0;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-all;
+}
+
+.tt-event-time {
+  flex-shrink: 0;
+  font-size: 10px;
+  line-height: 1.2;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.tt-course {
+  margin: 2px;
+  border: none;
+  border-left: 3px solid hsla(var(--tt-hue, 258), 70%, 52%, 0.55);
+  border-radius: 8px;
+  padding: 3px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  overflow: hidden;
+  cursor: pointer;
+  text-align: center;
+  background: hsla(var(--tt-hue, 258), 70%, 58%, 0.16);
+  color: var(--text-primary);
+  transition: filter 0.15s;
+}
+
+.tt-course:hover {
+  filter: brightness(1.06);
+}
+
+/* 已上完的课：去色相、整体置灰 */
+.tt-course.past {
+  background: var(--neutral-soft);
+  border-left-color: transparent;
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.tt-course-name {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-all;
+}
+
+.tt-course-place,
+.tt-course-teacher {
+  font-size: 10px;
+  line-height: 1.3;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* ── 日视图 ── */
+.tt-daytabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.tt-daytab {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tt-daytab.today:not(.active) {
+  border-color: var(--accent-1);
+  color: var(--accent-1);
+}
+
+.tt-daytab.active {
+  background: var(--accent-1);
+  border-color: var(--accent-1);
+  color: var(--white);
+}
+
+.tt-daydate {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.tt-dayempty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 32px 0;
+}
+
+.tt-meal {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+  margin: 10px 0;
+}
+
+.tt-meal::before,
+.tt-meal::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-color);
+}
+
+.tt-meal .tt-secname {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* 日视图的时段小标题（该时段第一条目上方） */
+.tt-sechead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.tt-sechead::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-color);
+}
+
+/* 日程行（区别于课程的青色） */
+.tt-dayrow.is-event .tt-dayrow-time,
+.tt-dayrow.is-event .tt-dayrow-card {
+  background: var(--accent-2-soft);
+  border-left-color: var(--accent-2);
+}
+
+.tt-dayrow.is-event .tt-dayrow-name em {
+  color: var(--accent-2-hover);
+}
+
+.tt-dayrow {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.tt-dayrow-time {
+  width: 52px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-radius: 8px;
+  background: hsla(var(--tt-hue, 258), 70%, 58%, 0.12);
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.tt-dayrow-time b {
+  font-size: 13px;
+}
+
+.tt-dayrow-time i {
+  font-style: normal;
+  color: var(--text-muted);
+}
+
+.tt-dayrow-card {
+  flex: 1;
+  min-width: 0;
+  border-radius: 10px;
+  padding: 8px 12px;
+  background: hsla(var(--tt-hue, 258), 70%, 58%, 0.14);
+  border-left: 3px solid hsla(var(--tt-hue, 258), 70%, 52%, 0.55);
+  color: var(--text-primary);
+}
+
+.tt-dayrow-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.tt-dayrow-name em {
+  font-style: normal;
+  font-weight: normal;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: 8px;
+}
+
+.tt-dayrow-meta {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tt-dayrow-weeks {
+  align-self: center;
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* 已上完的课置灰 */
+.tt-dayrow.past .tt-dayrow-time,
+.tt-dayrow.past .tt-dayrow-card {
+  background: var(--neutral-soft);
+  border-left-color: transparent;
+}
+
+.tt-dayrow.past .tt-dayrow-name,
+.tt-dayrow.past .tt-dayrow-time b {
+  color: var(--text-muted);
+}
+
+.tt-dayrow.past .tt-dayrow-meta,
+.tt-dayrow.past .tt-dayrow-time i,
+.tt-dayrow.past .tt-dayrow-name em {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+/* ── 周切换悬浮条：吸附在视口底部，方便拇指操作 ── */
+.tt-bottombar {
+  position: sticky;
+  bottom: 12px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 6px 12px;
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  box-shadow: var(--glow-accent);
+}
+
+.tt-bottombar .tt-weeklabel {
+  min-width: 86px;
+}
+
+/* ── 空态与提示 ── */
+.tt-empty {
+  text-align: center;
+  color: var(--text-muted);
+  margin-top: 18px;
+  line-height: 1.9;
+}
+
+.tt-localhint {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: 18px;
+}
+
+/* ── 表单（学期设置 / 课程编辑） ── */
+.tt-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tt-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.tt-field input,
+.tt-field select,
+.tt-field textarea {
+  padding: 10px 12px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+  width: 100%;
+}
+
+.tt-field textarea {
+  resize: vertical;
+  min-height: 56px;
+}
+
+.tt-field input:focus,
+.tt-field select:focus,
+.tt-field textarea:focus {
+  border-color: var(--accent-1);
+}
+
+.tt-field-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.tt-field-hint {
+  margin: -4px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.tt-slot-inputs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tt-slot-inputs input,
+.tt-slot-inputs select {
+  width: auto;
+  flex: 1;
+  min-width: 64px;
+}
+
+/* 「至」分隔符：永不收缩，避免被两侧有实底的下拉盖住 */
+.tt-slot-inputs .tt-slot-sep {
+  flex-shrink: 0;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+
+/* 弹窗表单内的 CategoryDropdown（popover 模式）：全宽 pill，fixed 菜单不越界 */
+.tt-form .category-dropdown {
+  width: 100%;
+}
+
+.tt-form .category-btn {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tt-slot-inputs .category-dropdown {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+}
+
+/* ── 课程详情 ── */
+.tt-detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+
+.tt-detail-time {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.tt-detail-time i {
+  font-style: normal;
+  font-weight: normal;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: 8px;
+}
+
+.tt-detail-meta {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.tt-detail-weeks {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* 日程备注：仅详情弹窗展示，保留换行 */
+.tt-detail-note {
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  border-top: 1px dashed var(--border-color);
+  padding-top: 8px;
+  margin-top: 2px;
+}
+
+.tt-detail-actions {
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+/* 导入进度提示 + 教务验证码图 */
+.tt-importmsg {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* 学期设置弹窗里的导入区块 */
+.tt-import-box {
+  border-top: 1px dashed var(--border-color);
+  padding-top: 12px;
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tt-import-box-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.tt-import-box .btn {
+  width: 100%;
+  justify-content: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tt-captcha-img {
+  display: block;
+  margin: 0 auto 12px;
+  border-radius: 8px;
+}
+
+.tt-imported-hint {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 8px 0 0;
+}
+
+/* 删除范围选择 + 日程冲突处理 */
+.tt-del-msg {
+  margin: 0 0 12px;
+  color: var(--text-secondary);
+}
+
+.tt-del-choices,
+.tt-conflict-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tt-del-choices .btn,
+.tt-conflict-actions .btn {
+  width: 100%;
+  justify-content: center;
+}
+
+.tt-conflict-head {
+  margin: 0 0 8px;
+  color: var(--text-secondary);
+}
+
+.tt-conflict-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.tt-conflict-kind {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 1px 6px;
+}
+
+.tt-conflict-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tt-conflict-time {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── 窄屏适配 ── */
+@media (max-width: 640px) {
+  .tt-weekgrid {
+    /* 手机列 ~45px，同样 ≈ 1:1.4 竖版 */
+    --tt-slot-h: 64px;
+  }
+
+  .tt-weeklabel {
+    min-width: 72px;
+    font-size: 13px;
+  }
+
+  .tt-toolbar {
+    justify-content: center;
+  }
+
+  .tt-dayrow-weeks {
+    display: none;
+  }
+
+  .tt-bottombar {
+    bottom: 8px;
+  }
+}

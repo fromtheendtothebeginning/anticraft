@@ -497,6 +497,68 @@ class DektClient:
             result["terms"] = sorted(terms, key=lambda t: (t["xnmmc"], t["xqm"]))
         return result
 
+    def fetch_kbcx(self, student_id, xnm, xqm, zs):
+        """查询某周课表（教务系统移动端接口，按周返回该周有课的记录与日期安排）"""
+        if not self.jwxt_session:
+            raise DektError("未登录教务系统")
+        url = self.jxw_base + "/jwglxt/kbcx/xskbcxMobile_cxXsKb.html?gnmkdm=N2154"
+        body = {
+            "gnmkdm": "N2154",
+            "xnm": str(xnm),
+            "xqm": str(xqm),
+            "zs": str(zs),
+            "doType": "app",
+            "kblx": "1",
+            "xh": student_id,
+        }
+        headers = {
+            "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+            "Referer": self.jxw_base + "/jwglxt/kbcx/xskbcxMobile_cxXsKb.html?gnmkdm=N2154&layout=default",
+            "X-Requested-With": "XMLHttpRequest",
+            "Origin": self.jxw_base,
+        }
+        try:
+            resp = self.jwxt_session.post(url, data=body, timeout=30,
+                                          headers=headers, allow_redirects=False)
+        except requests.exceptions.RequestException:
+            raise DektError("教务系统响应超时，请重试")
+        if resp.status_code == 302:
+            self.jwxt_session = None
+            raise DektError("教务登录已失效，请重新导入")
+        j = self._parse_response(resp)
+        if not isinstance(j, dict) or not isinstance(j.get("rqazcList"), list) or not j.get("rqazcList"):
+            # 超出学期范围等情况下日期安排为空，前端据此停止逐周遍历
+            raise DektError("该周没有课表数据（可能已超出学期范围）")
+        courses = []
+        for it in j.get("kbList") or []:
+            try:
+                jcs = str(it.get("jcs") or "")
+                if "-" in jcs:
+                    a, b = jcs.split("-")[:2]
+                    slot_start, slot_end = int(a) - 1, int(b) - 1
+                else:
+                    v = int(jcs) - 1
+                    slot_start = slot_end = v
+                day = max(0, min(6, int(it.get("xqj") or 1) - 1))
+            except (ValueError, TypeError):
+                continue
+            if slot_start < 0 or slot_end < slot_start or slot_end >= 11:
+                continue
+            courses.append({
+                "name": (it.get("kcmc") or "").strip(),
+                "place": (it.get("cdmc") or "").strip(),
+                "teachers": (it.get("xm") or "").strip(),
+                "day": day,
+                "slotStart": slot_start,
+                "slotEnd": slot_end,
+            })
+        xsxx = j.get("xsxx") or {}
+        return {
+            "courses": courses,
+            "dates": [{"xqj": d.get("xqj"), "rq": d.get("rq")} for d in j["rqazcList"]],
+            "xnmc": xsxx.get("XNMC") or "",
+        }
+
     @staticmethod
     def _calc_gpa(grades):
         """绩点 = 成绩/10 - 5（满绩点5.0）；总绩点 = Σ(绩点×学分)/Σ学分"""

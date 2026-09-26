@@ -1634,6 +1634,11 @@ export default function CampusServicePage() {
               <span className="cs-qcard-desc">{t('campusService.electricity.desc')}</span>
               <span className="cs-qcard-state">{'›'}</span>
             </Link>
+            <Link to="/tools/campus-service/timetable" className="cs-qcard">
+              <span className="cs-qcard-name">{t('campusService.query.timetable')}</span>
+              <span className="cs-qcard-desc">{t('campusService.query.timetableDesc')}</span>
+              <span className="cs-qcard-state">{'›'}</span>
+            </Link>
           </div>
           {user.role === 'admin' && (
             <Link to="/tools/campus-service/pool" className="cs-pool-link">

@@ -404,3 +404,15 @@ class ElectricityRecord(Base):
 
     def __repr__(self):
         return f"<ElectricityRecord(id={self.id}, user_id={self.user_id}, balance={self.balance})>"
+
+
+class UserTimetable(Base):
+    """课程表 —— 每用户一份 JSON（课程表页云端同步，updatedAt 最后写入胜）"""
+    __tablename__ = "user_timetables"
+
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, comment="所属用户 ID")
+    data = Column(JSON, nullable=False, default=dict, comment="课程表数据（学期信息 + 课程场次数组）")
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), comment="更新时间")
+
+    def __repr__(self):
+        return f"<UserTimetable(user_id={self.user_id})>"
