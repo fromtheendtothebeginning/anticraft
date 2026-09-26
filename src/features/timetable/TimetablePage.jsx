@@ -256,8 +256,9 @@ export default function TimetablePage() {
     const now = new Date()
     const y = now.getFullYear()
     const m = now.getMonth() + 1
+    // 正方学期码：3=第一学期(9月~次年1月) / 12=第二学期(2~6月) / 16=短学期(7~8月)
     const xnm = String(m >= 9 ? y : y - 1)
-    const xqm = m === 1 ? '3' : m <= 6 ? '12' : '16'
+    const xqm = (m >= 9 || m === 1) ? '3' : m <= 6 ? '12' : '16'
     const isFull = !(tt.jwxt && Object.keys(tt.jwxt.weeks || {}).length)
     const weeks = { ...(tt.jwxt?.weeks || {}) }
     let w = isFull ? 1 : week
