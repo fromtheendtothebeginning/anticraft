@@ -59,7 +59,6 @@ function MyPage() {
   // 识图模型配置（识图类工具使用）
   const [visionKeyId, setVisionKeyId] = useState(null)
   const [visionModel, setVisionModel] = useState('')
-  const [visionModels, setVisionModels] = useState([])
   const [visionThinking, setVisionThinking] = useState('')
 
   // ── 弹窗状态 ──
@@ -150,39 +149,12 @@ function MyPage() {
         setVisionKeyId(s.vision_key_id || null)
         setVisionModel(s.vision_model || '')
         setVisionThinking(s.vision_thinking || '')
-        if (s.vision_key_id) fetchKeyModelList(s.vision_key_id, setVisionModels, 'vision')
       })
       .catch(() => setAiError(t('myPage.ai.loadError')))
 
       .finally(() => { if (!cancelled) setAiLoading(false) })
     return () => { cancelled = true }
   }, [tab])
-
-  // 拉取指定 Key 的可用模型列表（识图配置用，带 localStorage 缓存；capability 过滤能力）
-  // seq 防竞态：快速切换 Key 时旧响应不得覆盖新 Key 的模型
-  const keyModelReqRef = useRef(0)
-  const fetchKeyModelList = (keyId, setter, capability = '') => {
-    if (!keyId) { setter([]); return }
-    const seq = ++keyModelReqRef.current
-    const cacheKey = `ai_models_${keyId}${capability ? '_' + capability : ''}`
-    const cached = localStorage.getItem(cacheKey)
-    if (cached) {
-      try {
-        const arr = JSON.parse(cached)
-        if (Array.isArray(arr) && arr.length > 0) setter(arr)
-      } catch { /* 缓存损坏忽略 */ }
-    }
-    apiFetch(`/api/user/ai-keys/${keyId}/models${capability ? `?capability=${capability}` : ''}`)
-      .then(r => (r.ok ? r.json() : null))
-      .then(data => {
-        if (seq !== keyModelReqRef.current) return
-        if (data && data.models && data.models.length > 0) {
-          setter(data.models)
-          try { localStorage.setItem(cacheKey, JSON.stringify(data.models)) } catch { /* 忽略 */ }
-        }
-      })
-      .catch(() => {})
-  }
 
   // 拉取动态模型（可复用：进入页面/切 key 自动，刷新按钮手动）
   // 先读 localStorage 缓存立即显示，再后台拉取更新并写缓存；seq 防快速切换 Key 的竞态
@@ -748,21 +720,19 @@ function MyPage() {
                       <CategoryDropdown
                         value={visionKeyId || ''}
                         onChange={v => {
-                          const id = v ? Number(v) : null
-                          setVisionKeyId(id)
+                          setVisionKeyId(v ? Number(v) : null)
                           setVisionModel('')
-                          fetchKeyModelList(id, setVisionModels, 'vision')
                         }}
                         options={keys.map(k => ({ value: k.id, label: `${k.provider} · ${k.label || k.key_hint || k.id}` }))}
                         placeholder={t('myPage.visionSpeech.selectKey')}
                         closeOnSelect
                       />
-                      <CategoryDropdown
+                      <input
+                        type="text"
+                        className="profile-input ai-input"
                         value={visionModel}
-                        onChange={setVisionModel}
-                        options={(visionKeyId ? visionModels : []).map(mm => ({ value: mm, label: mm }))}
+                        onChange={e => setVisionModel(e.target.value)}
                         placeholder={t('myPage.visionSpeech.visionModel')}
-                        closeOnSelect
                       />
                     </div>
                     <p className="ai-hint">{t('myPage.visionSpeech.visionHint')}</p>

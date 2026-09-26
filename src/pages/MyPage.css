@@ -655,3 +655,10 @@
   gap: 12px;
   flex-wrap: wrap;
 }
+
+/* 识图模型 ID 填空：与 Key 选择器同行，窄屏折行 */
+.vs-config-row .ai-input {
+  width: auto;
+  flex: 1;
+  min-width: 200px;
+}
