@@ -274,7 +274,8 @@ export default function TimetablePage() {
       const b = await res.json().catch(() => null)
       if (b && b.vpn_connecting) {
         vpnRetry += 1
-        if (vpnRetry > 5) { setImportErr(t('timetable.importVpnFail')); break }
+        // VPN 建立需要 1-2 分钟，耐心轮询 2 分钟再放弃
+        if (vpnRetry > 20) { setImportErr(t('timetable.importVpnFail')); break }
         setImportMsg(t('campusService.vpnAutoConnecting'))
         await new Promise(r => setTimeout(r, 6000))
         continue
