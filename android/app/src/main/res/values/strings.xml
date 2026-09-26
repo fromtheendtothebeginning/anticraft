@@ -3,7 +3,4 @@
     <string name="load_failed_title">页面加载失败</string>
     <string name="load_failed_hint">请检查网络连接后重试</string>
     <string name="reload">重新加载</string>
-    <string name="open_portal">信息门户</string>
-    <string name="back_to_campus">返回校园服务</string>
-    <string name="need_login">请先登录 anticraft</string>
 </resources>

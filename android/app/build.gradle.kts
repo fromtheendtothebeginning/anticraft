@@ -21,8 +21,8 @@ android {
         applicationId = "top.anticraft.app"
         minSdk = 24
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "1.2"
     }
 
     // Java 与 Kotlin 的字节码目标必须一致（构建机是 JDK 24，Kotlin 2.0 不认识 24 会回退到 22）

@@ -6,7 +6,6 @@ import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.graphics.Bitmap
 import android.graphics.Color
-import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -15,8 +14,6 @@ import android.view.ViewGroup
 import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.webkit.ConsoleMessage
-import android.webkit.CookieManager
-import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -28,9 +25,6 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
-import android.widget.Toast
-import org.json.JSONObject
-import org.json.JSONTokener
 
 /** 站点入口：直接落在校园服务（nginx 对深链返回 index.html，由前端路由接管） */
 private const val START_URL = "https://anticraft.top/tools/campus-service"
@@ -43,30 +37,6 @@ private const val TAG = "AnticraftWeb"
 
 /** 站点浅色主题底色（CSS --bg-primary），页面加载完成前先用它铺底 */
 private val DEFAULT_BACKGROUND = 0xFFF8F9FA.toInt()
-
-/** 校园服务路径：在这里显示「信息门户」按钮 */
-private const val CAMPUS_PATH = "/tools/campus-service"
-
-/** 信息门户代理入口（后端把 portal.sit.edu.cn 反代到这里，流量走服务器校园网隧道） */
-private const val PORTAL_PATH = "/api/sit"
-
-/** 页面路由变化回传（SPA 的 pushState/replaceState/popstate 都不会触发 onPageFinished） */
-private const val NAV_HOOK_JS = """
-(function () {
-  if (window.__anticraftNavHook) return;
-  window.__anticraftNavHook = true;
-  var send = function () {
-    try { window.AnticraftHost.onUrl(location.href); } catch (e) {}
-  };
-  ['pushState', 'replaceState'].forEach(function (k) {
-    var f = history[k];
-    history[k] = function () { var r = f.apply(this, arguments); send(); return r; };
-  });
-  window.addEventListener('popstate', send);
-  window.addEventListener('hashchange', send);
-  send();
-})();
-"""
 
 /**
  * 站内有不少 target="_blank" 的外链（项目仓库、LeetCode 等），WebView 默认会把它们丢掉、点了没反应。
@@ -100,7 +70,6 @@ class MainActivity : Activity() {
     private lateinit var webView: WebView
     private lateinit var progressBar: ProgressBar
     private lateinit var errorView: View
-    private lateinit var portalButton: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -167,67 +136,6 @@ class MainActivity : Activity() {
         }
     }
 
-    // ============================================================
-    // 悬浮按钮：校园服务 ↔ 信息门户
-    // ============================================================
-
-    /** 只在「校园服务」和「信息门户」两类页面上出现，避免挡住站点其他内容 */
-    private fun updatePortalButton(url: String?) {
-        val u = url ?: return
-        when {
-            u.contains(PORTAL_PATH) -> {
-                portalButton.text = getString(R.string.back_to_campus)
-                portalButton.visibility = View.VISIBLE
-            }
-            u.contains(CAMPUS_PATH) -> {
-                portalButton.text = getString(R.string.open_portal)
-                portalButton.visibility = View.VISIBLE
-            }
-            else -> portalButton.visibility = View.GONE
-        }
-    }
-
-    private fun onPortalButtonClick() {
-        val current = webView.url ?: ""
-        if (current.contains(PORTAL_PATH)) {
-            webView.loadUrl(current.substringBefore(PORTAL_PATH) + CAMPUS_PATH)
-            return
-        }
-        // 整页导航带不了 Authorization 头，所以把 JWT 交给后端换成 Cookie；
-        // 用当前页面的 origin（不写死生产域名），本地联调同一套代码也能用
-        webView.evaluateJavascript(
-            "JSON.stringify({o:location.origin,t:localStorage.getItem('token')||''})"
-        ) { res ->
-            // evaluateJavascript 回传的是「JSON 字符串字面量」，要再解一层
-            val payload = try {
-                JSONObject(JSONTokener(res ?: "").nextValue() as String)
-            } catch (e: Exception) {
-                JSONObject()
-            }
-            val origin = payload.optString("o")
-            val token = payload.optString("t")
-            if (origin.isEmpty() || token.isEmpty()) {
-                Toast.makeText(this, getString(R.string.need_login), Toast.LENGTH_SHORT).show()
-                return@evaluateJavascript
-            }
-            // 门户的 JS 会被 WebView 长期缓存（含 V8 代码缓存），旧副本里是坏掉的资源地址，
-            // 不清就会一直按旧地址请求（403 → 页面自己退出），所以进门户前整份清掉。
-            // 站点登录态在 localStorage 而门户不用 localStorage（已核实），故只清缓存与 Cookie。
-            webView.clearCache(true)
-            CookieManager.getInstance().removeAllCookies(null)
-            CookieManager.getInstance().flush()
-            webView.loadUrl("$origin$PORTAL_PATH/?t=$token")
-        }
-    }
-
-    /** 站点 SPA 的地址变化通过 JS 桥回传到界面（不用轮询） */
-    private inner class NavBridge {
-        @JavascriptInterface
-        fun onUrl(url: String?) {
-            runOnUiThread { updatePortalButton(url) }
-        }
-    }
-
     override fun onBackPressed() {
         // 先回退网页历史（子页面 → 校园服务主页），退到头再关 App
         if (::webView.isInitialized && webView.canGoBack()) webView.goBack() else super.onBackPressed()
@@ -239,23 +147,6 @@ class MainActivity : Activity() {
         if (host == SITE_HOST || host.endsWith(".$SITE_HOST")) return true
         val debuggable = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
         return debuggable && (host == "10.0.2.2" || host == "localhost" || host == "127.0.0.1")
-    }
-
-    /**
-     * 校园内网门户（portal/my.sit.edu.cn）在手机上进不去，交给服务器反代。
-     * CAS 登录后会把浏览器送回**真实**门户地址（它的 OAuth 回调有白名单校验，不能改写），
-     * 所以在这里把这类导航映射到代理路径上。
-     */
-    private fun portalProxyFor(url: android.net.Uri): String? {
-        val host = url.host ?: return null
-        if (host != "portal.sit.edu.cn" && host != "my.sit.edu.cn") return null
-        val origin = webView?.url
-            ?.let { runCatching { android.net.Uri.parse(it) }.getOrNull() }
-            ?.let { "${it.scheme}://${it.authority}" }
-            ?: ("https://" + SITE_HOST)
-        val path = url.encodedPath ?: "/"
-        val query = url.encodedQuery?.let { "?$it" } ?: ""
-        return origin + PORTAL_PATH + path + query
     }
 
     /** 默认进校园服务；带本站网址启动时用该网址（便于调试/直达某个页面） */
@@ -280,18 +171,10 @@ class MainActivity : Activity() {
             settings.domStorageEnabled = true   // 站点把登录 token 存在 localStorage
             settings.setSupportMultipleWindows(false)
 
-            addJavascriptInterface(NavBridge(), "AnticraftHost")
-
             webViewClient = object : WebViewClient() {
                 // 站内链接留在 WebView（前端路由），站外链接交给系统浏览器
                 override fun shouldOverrideUrlLoading(v: WebView, request: WebResourceRequest): Boolean {
                     if (isSiteHost(request.url.host)) return false
-                    // 登录后被 CAS 送回真实门户地址 → 映射到服务器反代
-                    portalProxyFor(request.url)?.let { proxied ->
-                        Log.i(TAG, "portal host mapped: ${request.url.host} -> proxy")
-                        v.loadUrl(proxied)
-                        return true
-                    }
                     runCatching { startActivity(Intent(Intent.ACTION_VIEW, request.url)) }
                     return true
                 }
@@ -299,9 +182,7 @@ class MainActivity : Activity() {
                 override fun onPageFinished(v: WebView, url: String?) {
                     Log.i(TAG, "page finished: $url")
                     v.evaluateJavascript(STRIP_BLANK_JS, null)
-                    v.evaluateJavascript(NAV_HOOK_JS, null)
                     syncBackgroundFromPage(v)
-                    updatePortalButton(url)
                 }
 
                 override fun onPageStarted(v: WebView?, url: String?, favicon: Bitmap?) {
@@ -366,25 +247,6 @@ class MainActivity : Activity() {
         root.addView(errorView, FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
 
-        // 悬浮按钮：校园服务页显示「信息门户」，门户页显示「返回校园服务」
-        portalButton = TextView(this).apply {
-            text = getString(R.string.open_portal)
-            setTextColor(Color.WHITE)
-            textSize = 14f
-            setPadding(dp(18), dp(10), dp(18), dp(10))
-            background = GradientDrawable().apply {
-                cornerRadius = dp(22).toFloat()
-                setColor(0xFF6C5CE7.toInt())
-            }
-            elevation = dp(6).toFloat()
-            visibility = View.GONE
-            setOnClickListener { onPortalButtonClick() }
-        }
-        root.addView(portalButton, FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
-            android.view.Gravity.BOTTOM or android.view.Gravity.END).apply {
-            setMargins(dp(16), dp(16), dp(16), dp(20))
-        })
         return root
     }
 
