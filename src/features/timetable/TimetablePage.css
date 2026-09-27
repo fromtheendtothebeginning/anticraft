@@ -393,7 +393,7 @@
   word-break: break-all;
 }
 
-/* 地点/教师不再横向截断成省略号：纵向换行利用卡片富余高度（地点最多 2 行，教师 1 行） */
+/* 地点不再横向截断：汉字部分纵向换行（最多 2 行），字母+数字编号独立成行不拆断 */
 .tt-course-place,
 .tt-course-teacher {
   font-size: 10px;
@@ -412,6 +412,16 @@
 
 .tt-course-teacher {
   -webkit-line-clamp: 1;
+}
+
+.tt-course-code {
+  font-size: 10px;
+  line-height: 1.25;
+  color: var(--text-secondary);
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 /* ── 日视图 ── */
@@ -899,8 +909,25 @@
 /* ── 窄屏适配 ── */
 @media (max-width: 640px) {
   .tt-weekgrid {
-    /* 手机列 ~45px，同样 ≈ 1:1.4 竖版 */
-    --tt-slot-h: 64px;
+    /* 手机：行高拉长 + 节次列收窄，保证卡片内每行至少放下 3 个字 */
+    --tt-slot-h: 70px;
+    grid-template-columns: 28px repeat(7, minmax(0, 1fr));
+  }
+
+  /* 网格向两侧借页面留白（并解除桌面 480px 限宽），多出约 20px 分给 7 列 */
+  .tt-weekwrap {
+    margin: 0 -10px;
+    max-width: none;
+  }
+
+  /* 卡片自身边距收紧（外 1px、内 2px），再省出 4px/列 */
+  .tt-course {
+    margin: 1px;
+    padding: 2px;
+  }
+
+  .tt-slotnum-t {
+    font-size: 8px;
   }
 
   .tt-weeklabel {

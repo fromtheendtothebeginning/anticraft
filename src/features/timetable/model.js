@@ -136,6 +136,13 @@ export function adjustmentOnDate(adjustments, iso) {
   return adjustments.find(a => a && a.date === iso) || null
 }
 
+// 地点拆行：末尾的字母+数字编号单独一行（图文信息中心B302 → 图文信息中心 / B302），无编号返回原串
+export function splitPlace(place) {
+  const p = (place || '').trim()
+  const m = /^(.*?)([A-Za-z]+[\dA-Za-z-]*)$/.exec(p)
+  return m && m[1].trim() ? [m[1].trim(), m[2]] : [p, '']
+}
+
 // 日期区间展开为逐日 ISO 列表（含两端，上限 42 天防误填）
 export function expandDateRange(startISO, endISO) {
   const start = new Date(`${startISO}T00:00:00`)

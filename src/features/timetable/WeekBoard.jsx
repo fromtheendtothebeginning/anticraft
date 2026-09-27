@@ -7,7 +7,7 @@ import { t } from '../../i18n'
 import {
   SLOT_TIMES, SECTIONS, WEEKDAY_SHORT, SUBS_PER_SLOT,
   dateOfWeekDay, dateISOOf, courseMatchesWeek, courseHue, lessonPassed,
-  eventOnDay, minutesOf, minutesToSub, adjustmentOnDate,
+  eventOnDay, minutesOf, minutesToSub, adjustmentOnDate, splitPlace,
 } from './model'
 
 // 份数下标 a（0-109）→ 网格行号：表头 1 行 + 之前经过的色带（上午必经、下午/晚上按节次）+ 11:55 线
@@ -81,6 +81,8 @@ export default function WeekBoard({ timetable, week, today, now, showTimes, onPi
           // 末节=第 4 节且选了 11:55：卡片向下延伸盖过 11:55 细线
           const span = subRow((c.slotEnd + 1) * SUBS_PER_SLOT - 1) - subRow(c.slotStart * SUBS_PER_SLOT) + 1
             + (c.slotEnd === 3 && c.endAt ? 1 : 0)
+          // 地点拆行：汉字一行、字母+数字编号一行（编号不被拆断）
+          const [placeZh, placeCode] = splitPlace(c.place)
           return (
             <button
               type="button"
@@ -91,7 +93,8 @@ export default function WeekBoard({ timetable, week, today, now, showTimes, onPi
               onClick={() => onPick(c)}
             >
               <span className="tt-course-name">{c.name}</span>
-              {c.place && <span className="tt-course-place">{c.place}</span>}
+              {c.place && <span className="tt-course-place">{placeZh}</span>}
+              {c.place && placeCode && <span className="tt-course-code">{placeCode}</span>}
               {c.teachers && <span className="tt-course-teacher">{c.teachers}</span>}
             </button>
           )
