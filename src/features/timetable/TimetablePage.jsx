@@ -48,6 +48,12 @@ export default function TimetablePage() {
   const [importBusy, setImportBusy] = useState(false)
   const [importMsg, setImportMsg] = useState('')
   const [importErr, setImportErr] = useState('')
+  // 教务学期码：用户选择大一上~大四下（1-8），记忆上次选择
+  const [importTerm, setImportTerm] = useState(() => localStorage.getItem('tt.importTerm') || '3')
+  const changeImportTerm = (v) => {
+    setImportTerm(v)
+    try { localStorage.setItem('tt.importTerm', v) } catch { /* 隐私模式忽略 */ }
+  }
   const [captchaData, setCaptchaData] = useState(null) // { b64, zs, xnm, xqm }
   const [captchaInput, setCaptchaInput] = useState('')
 
@@ -256,9 +262,9 @@ export default function TimetablePage() {
     const now = new Date()
     const y = now.getFullYear()
     const m = now.getMonth() + 1
-    // 正方学期码：3=第一学期(9月~次年1月) / 12=第二学期(2~6月) / 16=短学期(7~8月)
+    // 学年按当前日期锚定；学期码由用户选择（大一上~大四下 ↔ 1-8）
     const xnm = String(m >= 9 ? y : y - 1)
-    const xqm = (m >= 9 || m === 1) ? '3' : m <= 6 ? '12' : '16'
+    const xqm = importTerm
     const isFull = !(tt.jwxt && Object.keys(tt.jwxt.weeks || {}).length)
     const weeks = { ...(tt.jwxt?.weeks || {}) }
     let w = isFull ? 1 : week
@@ -442,6 +448,8 @@ export default function TimetablePage() {
         timetable={tt}
         importBusy={importBusy}
         importMsg={importMsg}
+        term={importTerm}
+        onTermChange={changeImportTerm}
         onImport={doImport}
         onSave={(next) => { saveSettings(next); setSettingsOpen(false) }}
         onClose={() => setSettingsOpen(false)}

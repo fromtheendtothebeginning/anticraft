@@ -522,8 +522,8 @@ class DektClient:
                                           headers=headers, allow_redirects=False)
         except requests.exceptions.RequestException:
             raise DektError("教务系统响应超时，请重试")
-        if resp.status_code == 302:
-            print(f"[kbcx] session invalid (302), zs={zs}", flush=True)
+        if resp.status_code in (302, 901):  # 901 = 教务移动端「未登录/会话失效」
+            print(f"[kbcx] session invalid ({resp.status_code}), zs={zs}", flush=True)
             self.jwxt_session = None
             raise DektError("教务登录已失效，请重新导入")
         j = self._parse_response(resp)
