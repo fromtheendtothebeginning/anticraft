@@ -615,6 +615,12 @@
   min-width: 86px;
 }
 
+/* 跳回当前周按钮：仅离开今天时出现，强调色便于发现 */
+.tt-bottombar .tt-curweek {
+  border-color: var(--accent-1);
+  color: var(--accent-1);
+}
+
 /* ── 空态与提示 ── */
 .tt-empty {
   text-align: center;

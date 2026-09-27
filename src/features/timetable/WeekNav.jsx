@@ -23,6 +23,17 @@ export default function WeekNav({ week, weekCount, offToday, onPrev, onNext, onB
         {t('timetable.week', { n: week })}
         {offToday && <i className="tt-today-dot" aria-hidden="true" />}
       </button>
+      {offToday && (
+        <button
+          type="button"
+          className="tt-navbtn tt-curweek"
+          aria-label={t('timetable.backToday')}
+          title={t('timetable.backToday')}
+          onClick={onBackToday}
+        >
+          <UiIcon name="crosshair" size={16} />
+        </button>
+      )}
       <button
         type="button"
         className="tt-navbtn"
