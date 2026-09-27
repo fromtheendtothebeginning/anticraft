@@ -186,6 +186,14 @@ const UI_ICONS = {
       <line x1="12" y1="22" x2="12" y2="18" />
     </>
   ),
+  swap: (
+    <>
+      <polyline points="17 1 21 5 17 9" />
+      <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+      <polyline points="7 23 3 19 7 15" />
+      <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+    </>
+  ),
 }
 
 export function UiIcon({ name, filled = false, size = 16, className }) {

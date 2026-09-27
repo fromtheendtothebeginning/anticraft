@@ -9,7 +9,7 @@ import { emptyTimetable, loadTimetable, saveTimetable, locateToday, deriveImport
 import WeekBoard from './WeekBoard'
 import DayList from './DayList'
 import WeekNav from './WeekNav'
-import { SemesterModal, CourseFormModal, CourseDetailModal, EventFormModal, EventDetailModal } from './modals'
+import { SemesterModal, CourseFormModal, CourseDetailModal, EventFormModal, EventDetailModal, AdjustModal } from './modals'
 import './TimetablePage.css'
 
 function genId() {
@@ -65,6 +65,7 @@ export default function TimetablePage() {
   }
 
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [adjustOpen, setAdjustOpen] = useState(false)
   const [editorOpen, setEditorOpen] = useState(false)
   const [editing, setEditing] = useState(null) // null=新增
   const [detail, setDetail] = useState(null)
@@ -184,6 +185,11 @@ export default function TimetablePage() {
     persist({ ...tt, courses })
     setEditorOpen(false)
     setDetail(null)
+  }
+
+  const saveAdjust = (adjustments) => {
+    persist({ ...tt, adjustments })
+    setAdjustOpen(false)
   }
 
   const saveEvent = (data, force = false) => {
@@ -395,6 +401,10 @@ export default function TimetablePage() {
               <UiIcon name="calendar" size={13} />
               {t('timetable.addEvent')}
             </button>
+            <button type="button" className="btn btn-secondary tt-addbtn" onClick={() => setAdjustOpen(true)}>
+              <UiIcon name="swap" size={13} />
+              {t('timetable.adjustBtn')}
+            </button>
             <button
               type="button"
               className={`tt-iconbtn${showTimes ? ' active' : ''}`}
@@ -453,6 +463,13 @@ export default function TimetablePage() {
         onImport={doImport}
         onSave={(next) => { saveSettings(next); setSettingsOpen(false) }}
         onClose={() => setSettingsOpen(false)}
+      />
+
+      <AdjustModal
+        open={adjustOpen}
+        timetable={tt}
+        onSave={saveAdjust}
+        onClose={() => setAdjustOpen(false)}
       />
 
       <CourseFormModal

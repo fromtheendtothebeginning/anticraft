@@ -3,9 +3,9 @@
 // 分隔线显示「上一节课下课 → 下一节上课」的真实时间，不同的课中午下课时间不同时会自适应
 import { t } from '../../i18n'
 import {
-  SLOT_TIMES, SECTIONS, WEEKDAY_SHORT,
+  SLOT_TIMES, SECTIONS, WEEKDAY_SHORT, WEEKDAY_LABELS,
   dateOfWeekDay, dateISOOf, coursesOfDay, courseHue, lessonPassed, weekRangeLabel,
-  minutesOf, fmtMin, sectionOfSlot, eventOnDay, courseEndMin,
+  minutesOf, fmtMin, sectionOfSlot, eventOnDay, courseEndMin, adjustmentOnDate,
 } from './model'
 
 const WEEK_TYPE_LABELS = {
@@ -26,14 +26,18 @@ function sectionOfItem(item) {
 
 export default function DayList({ timetable, week, day, today, now, onSetDay, onPick, onPickEvent, swipe }) {
   const items = []
-  if (timetable.startDate) {
-    for (const c of coursesOfDay(timetable, week, day)) {
+  const colDate = dateOfWeekDay(timetable.startDate, week, day)
+  const colISO = colDate ? dateISOOf(colDate) : ''
+  // 调休：off=放假无课；follow=按指定星期取课（置灰仍按当天真实日期判断）
+  const adj = adjustmentOnDate(timetable.adjustments, colISO)
+  const effDay = adj ? (adj.type === 'off' ? null : adj.day) : day
+  if (timetable.startDate && effDay != null) {
+    for (const c of coursesOfDay(timetable, week, effDay)) {
       items.push({ kind: 'course', c, startMin: minutesOf(SLOT_TIMES[c.slotStart][0]), endMin: courseEndMin(c) })
     }
   }
-  const colDate = dateOfWeekDay(timetable.startDate, week, day)
-  const colISO = colDate ? dateISOOf(colDate) : ''
   for (const ev of timetable.events || []) {
+    if (adj && adj.type === 'off' && !ev.date) continue // 放假：按星期重复的日程当天不显示
     if (eventOnDay(ev, colISO, day)) {
       items.push({ kind: 'event', ev, startMin: minutesOf(ev.start), endMin: minutesOf(ev.end) })
     }
@@ -128,6 +132,11 @@ export default function DayList({ timetable, week, day, today, now, onSetDay, on
           {colDate ? `${colDate.getMonth() + 1}月${colDate.getDate()}日` : ''}
         </span>
       </div>
+      {adj && (
+        <p className={`tt-dayhint${adj.type === 'off' ? ' is-off' : ''}`}>
+          {adj.type === 'off' ? t('timetable.adjOffHint') : t('timetable.adjFollowHint', { day: WEEKDAY_LABELS[adj.day] })}
+        </p>
+      )}
       {rows.length > 0 ? rows : <p className="tt-dayempty">{t('timetable.dayEmpty')}</p>}
     </div>
   )

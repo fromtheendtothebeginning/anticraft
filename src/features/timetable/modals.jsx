@@ -5,10 +5,12 @@ import { useState, useEffect } from 'react'
 import Modal from '../../components/Modal'
 import ActionButton from '../../components/ActionButton'
 import CategoryDropdown from '../../components/CategoryDropdown'
+import { UiIcon } from '../../components/Icons'
 import { t } from '../../i18n'
+import { apiFetch } from '../../utils/api'
 import {
-  SLOT_TIMES, DEFAULT_WEEK_COUNT, WEEKDAY_LABELS,
-  emptyDraft, courseHue, weekRangeLabel, minutesOf,
+  SLOT_TIMES, DEFAULT_WEEK_COUNT, WEEKDAY_LABELS, WEEKDAY_SHORT,
+  emptyDraft, courseHue, weekRangeLabel, minutesOf, expandDateRange,
 } from './model'
 
 const WEEK_TYPE_OPTIONS = [
@@ -406,6 +408,231 @@ export function EventDetailModal({ open, event, onEdit, onDelete, onClose }) {
         <div className="modal-actions tt-detail-actions">
           <ActionButton onClick={() => onEdit(event)}>{t('timetable.edit')}</ActionButton>
           <ActionButton variant="danger" onClick={() => onDelete(event)}>{t('timetable.delete')}</ActionButton>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+// ── 调休设置：放假 / 按周X上课规则列表，支持校历图片 AI 提取（识别不落库，确认后随课表 JSON 保存）──
+const emptyAdjustDraft = () => ({ date: '', endDate: '', type: 'off', day: 0 })
+
+// 按日期去重合并（新条目覆盖同日期旧条目）并升序排列
+const mergeAdjustments = (prev, entries) => {
+  const dateSet = new Set(entries.map(a => a.date))
+  return [...prev.filter(a => !dateSet.has(a.date)), ...entries]
+    .sort((a, b) => (a.date < b.date ? -1 : 1))
+}
+
+export function AdjustModal({ open, timetable, onSave, onClose }) {
+  const [list, setList] = useState([])
+  const [draft, setDraft] = useState(emptyAdjustDraft())
+  const [parsing, setParsing] = useState(false)
+  const [parseErr, setParseErr] = useState('')
+  // 校历识别的思考深度（独立于 AI 设置里识图模型的全局配置）；visionOpts 为空=未配置识图模型
+  const [visionOpts, setVisionOpts] = useState(null)
+  const [thinkLevel, setThinkLevel] = useState('')
+
+  useEffect(() => {
+    if (open) {
+      setList([...(timetable.adjustments || [])].sort((a, b) => (a.date < b.date ? -1 : 1)))
+      setDraft(emptyAdjustDraft())
+      setParsing(false)
+      setParseErr('')
+      setThinkLevel(() => { try { return localStorage.getItem('tt.holidayThink') || '' } catch { return '' } })
+      // 识图模型的厂商/模型档位（后端按 AI 设置解析；未配置时返回 vision:null，隐藏思考选项）
+      // 未登录跳过：apiFetch 收到 401 会跳 /auth，而课程表未登录也可本地使用
+      if (localStorage.getItem('token')) {
+        apiFetch('/api/timetable/holiday/options')
+          .then(r => (r.ok ? r.json() : null))
+          .then(b => {
+            if (!b || !b.ok || !b.vision) { setVisionOpts(null); return }
+            setVisionOpts(b)
+            // 记忆的档位不在当前模型可选范围（换过模型/厂商）时回退为跟随默认
+            setThinkLevel(cur => {
+              const ok = cur === '' || (b.vision.levels || []).some(l => l.value === cur)
+              return ok ? cur : ''
+            })
+          })
+          .catch(() => setVisionOpts(null))
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
+  const changeThinkLevel = (v) => {
+    setThinkLevel(v)
+    try {
+      if (v) localStorage.setItem('tt.holidayThink', v)
+      else localStorage.removeItem('tt.holidayThink')
+    } catch { /* 隐私模式忽略 */ }
+  }
+
+  const addRules = () => {
+    if (!draft.date) return
+    const dates = draft.endDate ? expandDateRange(draft.date, draft.endDate) : [draft.date]
+    if (!dates.length) return
+    const entries = dates.map(iso => (draft.type === 'off'
+      ? { date: iso, type: 'off' }
+      : { date: iso, type: 'follow', day: draft.day }))
+    setList(prev => mergeAdjustments(prev, entries))
+    setDraft(d => ({ ...d, date: '', endDate: '' }))
+  }
+
+  const parseImage = async (e) => {
+    const file = e.target.files && e.target.files[0]
+    e.target.value = '' // 允许重复选择同一文件
+    if (!file || parsing) return
+    setParsing(true)
+    setParseErr('')
+    try {
+      const b64 = await new Promise((resolve, reject) => {
+        const r = new FileReader()
+        r.onload = () => resolve(String(r.result))
+        r.onerror = () => reject(new Error('read failed'))
+        r.readAsDataURL(file)
+      })
+      const res = await apiFetch('/api/timetable/holiday/parse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          image_b64: b64,
+          mime: file.type || 'image/png',
+          start_date: timetable.startDate,
+          week_count: timetable.weekCount,
+          thinking: thinkLevel, // ''=跟随识图模型配置 / off=关闭 / 厂商档位
+        }),
+      })
+      const b = await res.json().catch(() => null)
+      if (!res.ok || !b || !b.ok) {
+        const detail = b && b.detail
+        setParseErr(typeof detail === 'string' ? detail : (detail && detail.message) || t('timetable.adjParseFail'))
+        return
+      }
+      setList(prev => mergeAdjustments(prev, b.adjustments || []))
+    } catch {
+      setParseErr(t('timetable.adjParseFail'))
+    } finally {
+      setParsing(false)
+    }
+  }
+
+  const adjLabel = (a) => (a.type === 'off'
+    ? t('timetable.adjTypeOff')
+    : t('timetable.adjTypeFollow', { day: WEEKDAY_LABELS[a.day] || '' }))
+  const dateText = (iso) => {
+    const d = new Date(`${iso}T00:00:00`)
+    if (Number.isNaN(d.getTime())) return iso
+    return `${d.getMonth() + 1}/${d.getDate()} 周${WEEKDAY_SHORT[(d.getDay() + 6) % 7]}`
+  }
+
+  return (
+    <Modal
+      open={open}
+      title={t('timetable.adjustTitle')}
+      confirmText={t('modal.save')}
+      onConfirm={() => onSave(list)}
+      onCancel={onClose}
+    >
+      <div className="tt-form">
+        <div className="tt-adj-list">
+          {list.length === 0 && <p className="tt-field-hint">{t('timetable.adjEmpty')}</p>}
+          {list.map(a => (
+            <div key={a.date} className="tt-adj-item">
+              <span className="tt-adj-date">{dateText(a.date)}</span>
+              <span className={`tt-adj-type${a.type === 'off' ? ' is-off' : ''}`}>{adjLabel(a)}</span>
+              <button
+                type="button"
+                className="tt-adj-del"
+                aria-label={t('timetable.delete')}
+                onClick={() => setList(l => l.filter(x => x.date !== a.date))}
+              >
+                <UiIcon name="trash" size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
+        <div className="tt-field-row">
+          <label className="tt-field">
+            <span>{t('timetable.adjDate')}</span>
+            <input
+              type="date"
+              value={draft.date}
+              onChange={e => setDraft({ ...draft, date: e.target.value })}
+            />
+          </label>
+          <label className="tt-field">
+            <span>{t('timetable.adjEndDate')}</span>
+            <input
+              type="date"
+              value={draft.endDate}
+              onChange={e => setDraft({ ...draft, endDate: e.target.value })}
+            />
+          </label>
+        </div>
+        <div className="tt-field-row">
+          <label className="tt-field">
+            <span>{t('timetable.adjType')}</span>
+            <CategoryDropdown
+              popover
+              value={draft.type}
+              onChange={v => setDraft({ ...draft, type: v })}
+              options={[
+                { value: 'off', label: t('timetable.adjTypeOff') },
+                { value: 'follow', label: t('timetable.adjTypeFollowSelect') },
+              ]}
+              hideClear
+              closeOnSelect
+            />
+          </label>
+          {draft.type === 'follow' && (
+            <label className="tt-field">
+              <span>{t('timetable.adjDay')}</span>
+              <CategoryDropdown
+                popover
+                value={draft.day}
+                onChange={v => setDraft({ ...draft, day: v })}
+                options={WEEKDAY_LABELS.map((w, i) => ({ value: i, label: w }))}
+                hideClear
+                closeOnSelect
+              />
+            </label>
+          )}
+        </div>
+        <p className="tt-field-hint">{t('timetable.adjRangeHint')}</p>
+        <div className="tt-adj-actions">
+          <button type="button" className="btn btn-secondary" onClick={addRules} disabled={!draft.date}>
+            {t('timetable.adjAdd')}
+          </button>
+          {list.length > 0 && (
+            <button type="button" className="btn btn-secondary" onClick={() => setList([])}>
+              {t('timetable.adjClear')}
+            </button>
+          )}
+        </div>
+        <div className="tt-import-box">
+          <p className="tt-import-box-hint">{t('timetable.adjParseHint')}</p>
+          {visionOpts && visionOpts.vision && (
+            <label className="tt-field">
+              <span>{t('timetable.adjThink')}</span>
+              <CategoryDropdown
+                popover
+                value={thinkLevel}
+                onChange={changeThinkLevel}
+                options={[
+                  { value: '', label: t('timetable.adjThinkDefault') },
+                  ...(visionOpts.vision.levels || []),
+                ]}
+                hideClear
+                closeOnSelect
+              />
+            </label>
+          )}
+          <label className={`btn btn-secondary tt-import-box-btn${parsing ? ' disabled' : ''}`}>
+            {parsing ? t('timetable.adjParsing') : t('timetable.adjParseBtn')}
+            <input type="file" accept="image/*" hidden disabled={parsing} onChange={parseImage} />
+          </label>
+          {parseErr && <p className="tt-field-hint tt-adj-err">{parseErr}</p>}
         </div>
       </div>
     </Modal>

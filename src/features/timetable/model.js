@@ -25,7 +25,7 @@ const DAY_MS = 86400000
 const STORAGE_KEY = 'campus_timetable'
 
 export function emptyTimetable() {
-  return { version: 1, name: '', startDate: '', weekCount: DEFAULT_WEEK_COUNT, courses: [], events: [] }
+  return { version: 1, name: '', startDate: '', weekCount: DEFAULT_WEEK_COUNT, courses: [], events: [], adjustments: [] }
 }
 
 // 一天三个时段：第 1-4 节上午 / 5-8 下午 / 9-11 晚上（slot 0 起：0-3 / 4-7 / 8-10）
@@ -126,6 +126,24 @@ export function courseMatchesWeek(week, course) {
   if (course.weekType === 'odd') return week % 2 === 1
   if (course.weekType === 'even') return week % 2 === 0
   return true
+}
+
+// ── 调休：off=放假无课；follow=该日按 day(0=周一) 的课表上课。存课表 JSON 内随云端同步 ──
+
+// 某日期的调休规则（无则 null）
+export function adjustmentOnDate(adjustments, iso) {
+  if (!iso || !Array.isArray(adjustments)) return null
+  return adjustments.find(a => a && a.date === iso) || null
+}
+
+// 日期区间展开为逐日 ISO 列表（含两端，上限 42 天防误填）
+export function expandDateRange(startISO, endISO) {
+  const start = new Date(`${startISO}T00:00:00`)
+  const end = new Date(`${endISO}T00:00:00`)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return []
+  const out = []
+  for (let d = start; d <= end && out.length < 42; d = new Date(d.getTime() + DAY_MS)) out.push(dateISOOf(d))
+  return out
 }
 
 // 某周某天的课程（按起始节次排序）
