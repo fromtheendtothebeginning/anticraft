@@ -283,6 +283,22 @@ export function removeImportedOccurrence(jwxt, item, scope, week) {
   return { ...(jwxt || {}), weeks }
 }
 
+// 移除一个展示段（编辑导入课程转手动时用）：只删该段周次范围内（按单/双周过滤）同键的场次
+export function removeImportedSegment(jwxt, item) {
+  const weeks = {}
+  for (const [zs, occ] of Object.entries((jwxt && jwxt.weeks) || {})) {
+    const w = Number(zs)
+    const inSeg = w >= item.weekStart && w <= item.weekEnd
+      && (item.weekType === 'odd' ? w % 2 === 1 : item.weekType === 'even' ? w % 2 === 0 : true)
+    weeks[zs] = !inSeg
+      ? (occ || [])
+      : (occ || []).filter(o => !(o.name === item.name && o.day === item.day
+          && o.slotStart === item.slotStart && o.slotEnd === item.slotEnd
+          && o.place === item.place && o.teachers === item.teachers))
+  }
+  return { ...(jwxt || {}), weeks }
+}
+
 // 场次是否已上完（该周该天 + 实际下课时刻已过）——用于置灰
 export function lessonPassed(startDate, week, dayIndex, course, now) {
   const d = dateOfWeekDay(startDate, week, dayIndex)

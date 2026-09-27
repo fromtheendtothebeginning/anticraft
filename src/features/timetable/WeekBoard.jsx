@@ -47,16 +47,12 @@ export default function WeekBoard({ timetable, week, today, now, showTimes, onPi
         {WEEKDAY_SHORT.map((w, i) => {
           const d = dateOfWeekDay(timetable.startDate, week, i)
           const isToday = today && today.week === week && today.dayIndex === i
-          const adj = colAdj[i]
+          // 调休列头：放假日星期字红色、调休借课日蓝色（不再显示角标）
+          const adjCls = colAdj[i] ? (colAdj[i].type === 'off' ? ' is-off' : ' is-follow') : ''
           return (
-            <div key={w} className={`tt-dayhead${isToday ? ' today' : ''}`} style={{ gridColumn: i + 2 }}>
+            <div key={w} className={`tt-dayhead${isToday ? ' today' : ''}${adjCls}`} style={{ gridColumn: i + 2 }}>
               <span className="tt-dayhead-w">{w}</span>
               <span className="tt-dayhead-d">{d ? `${d.getMonth() + 1}/${d.getDate()}` : ''}</span>
-              {adj && (
-                <span className={`tt-dayhead-adj${adj.type === 'off' ? ' is-off' : ''}`}>
-                  {adj.type === 'off' ? t('timetable.adjOffBadge') : t('timetable.adjFollowBadge', { day: WEEKDAY_SHORT[adj.day] })}
-                </span>
-              )}
             </div>
           )
         })}

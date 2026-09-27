@@ -5,7 +5,7 @@ import Modal from '../../components/Modal'
 import { UiIcon } from '../../components/Icons'
 import { t } from '../../i18n'
 import { apiFetch } from '../../utils/api'
-import { emptyTimetable, loadTimetable, saveTimetable, locateToday, deriveImportedCourses, removeImportedOccurrence, eventConflicts, WEEKDAY_LABELS } from './model'
+import { emptyTimetable, loadTimetable, saveTimetable, locateToday, deriveImportedCourses, removeImportedOccurrence, removeImportedSegment, eventConflicts, WEEKDAY_LABELS } from './model'
 import WeekBoard from './WeekBoard'
 import DayList from './DayList'
 import WeekNav from './WeekNav'
@@ -178,6 +178,17 @@ export default function TimetablePage() {
   }
 
   const saveCourse = (data) => {
+    // 教务导入的课程：保存即转为手动课程——从原始周数据移除该段场次，新建同周次的手动条目
+    if (editing && editing.imported) {
+      persist({
+        ...tt,
+        courses: [...tt.courses, { ...data, id: genId() }],
+        jwxt: removeImportedSegment(tt.jwxt, editing),
+      })
+      setEditorOpen(false)
+      setDetail(null)
+      return
+    }
     const entry = { ...data, id: data.id || genId() }
     const courses = editing
       ? tt.courses.map(c => (c.id === entry.id ? entry : c))

@@ -104,7 +104,8 @@ export function SemesterModal({ open, timetable, importBusy, importMsg, term, on
 export function CourseFormModal({ open, editing, weekCount, onSave, onClose }) {
   const [draft, setDraft] = useState(() => emptyDraft(weekCount))
   useEffect(() => {
-    if (open) setDraft(editing ? { ...editing } : emptyDraft(weekCount))
+    // imported 标记不进草稿：导入课程保存转手动后，新条目不应再带该标记
+    if (open) setDraft(editing ? { ...editing, imported: undefined } : emptyDraft(weekCount))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
@@ -272,7 +273,7 @@ export function CourseDetailModal({ open, course, sessions, onEdit, onDelete, on
             </div>
           ))}
           <div className="modal-actions tt-detail-actions">
-            {!course.imported && <ActionButton onClick={() => onEdit(course)}>{t('timetable.edit')}</ActionButton>}
+            <ActionButton onClick={() => onEdit(course)}>{t('timetable.edit')}</ActionButton>
             <ActionButton variant="danger" onClick={() => onDelete(course)}>{t('timetable.delete')}</ActionButton>
           </div>
           {course.imported && <p className="tt-imported-hint">{t('timetable.importedHint')}</p>}

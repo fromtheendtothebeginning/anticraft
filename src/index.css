@@ -27,6 +27,9 @@
   /* ── 危险色（红） ── */
   --danger: #e74c3c;
   --danger-hover: #c0392b;
+
+  /* ── 信息色（蓝） ── */
+  --info: #2f6fd6;
   --danger-soft: rgba(231, 76, 60, 0.1);        /* 浅红底 */
   --danger-soft-strong: rgba(231, 76, 60, 0.15); /* 略深红底 */
   --danger-border: rgba(231, 76, 60, 0.3);       /* 红描边 */
@@ -87,6 +90,7 @@
   --danger-soft: rgba(240, 106, 88, 0.18);
   --danger-soft-strong: rgba(240, 106, 88, 0.26);
   --danger-border: rgba(240, 106, 88, 0.45);
+  --info: #5aa2f0;
   --white: #ffffff;
   --border-color: #2e2f3a;
   --neutral-soft: #33343f;
@@ -138,6 +142,7 @@
     --danger-soft: rgba(240, 106, 88, 0.18);
     --danger-soft-strong: rgba(240, 106, 88, 0.26);
     --danger-border: rgba(240, 106, 88, 0.45);
+    --info: #5aa2f0;
     --white: #ffffff;
     --border-color: #2e2f3a;
     --neutral-soft: #33343f;
