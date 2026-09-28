@@ -1179,6 +1179,22 @@
   flex-direction: column;
   gap: 14px;
 }
+
+/* 限高滚动弹窗（表单类）：整窗不超视口，内容区滚动、底部按钮固定可见 */
+.modal-sheet-scroll {
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+.modal-sheet-scroll h3,
+.modal-sheet-scroll > p,
+.modal-sheet-scroll .modal-actions {
+  flex-shrink: 0;
+}
+.modal-sheet-scroll .modal-body {
+  overflow-y: auto;
+  min-height: 0;
+}
 .modal-body .ai-provider-select {
   min-width: 0;
 }

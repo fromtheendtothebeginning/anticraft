@@ -18,6 +18,7 @@ import { t } from '../i18n'
  * @param {boolean} [props.showConfirm=true] - 是否显示确认按钮
  * @param {boolean} [props.showCancel=true] - 是否显示取消按钮
  * @param {boolean} [props.confirmDisabled=false] - 确认按钮禁用
+ * @param {boolean} [props.scrollBody=false] - 内容超高时限制弹窗高度并让内容区滚动（表单类弹窗用）
  * @param {function} props.onConfirm - 确认回调
  * @param {function} props.onCancel - 取消回调
  */
@@ -32,6 +33,7 @@ function Modal({
   showConfirm = true,
   showCancel = true,
   confirmDisabled = false,
+  scrollBody = false,
   onConfirm,
   onCancel,
 }) {
@@ -48,7 +50,7 @@ function Modal({
 
   return (
     <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal-sheet" onClick={(e) => e.stopPropagation()}>
+      <div className={`modal-sheet${scrollBody ? ' modal-sheet-scroll' : ''}`} onClick={(e) => e.stopPropagation()}>
         <h3>{title}</h3>
         {children != null ? (
           <div className="modal-body">{children}</div>

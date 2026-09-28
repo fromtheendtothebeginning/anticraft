@@ -259,28 +259,31 @@ export function CourseDetailModal({ open, course, sessions, onEdit, onDelete, on
     >
       {course && (
         <div className="tt-detail">
-          {sessions.map(c => (
-            <div key={c.id} className="tt-detail-item">
-              <span className="tt-detail-time" data-hue={courseHue(c.name)}>
-                {WEEKDAY_LABELS[c.day]} · {t('timetable.slotLabel', { a: c.slotStart + 1, b: c.slotEnd + 1 })}
-                <i>{SLOT_TIMES[c.slotStart][0]}–{SLOT_TIMES[c.slotEnd][1]}</i>
-              </span>
-              <span className="tt-detail-meta">
-                {c.place}
-                {c.place && c.teachers ? ' · ' : ''}
-                {c.teachers}
-              </span>
-              {(c.code || c.clazz) && (
-                <span className="tt-detail-extras">
-                  {[c.code && `${t('timetable.courseCode')} ${c.code}`, c.clazz && `${t('timetable.courseClass')} ${c.clazz}`].filter(Boolean).join(' · ')}
+          <div className="tt-detail-list">
+            {sessions.map(c => (
+              <div key={c.id} className="tt-detail-item">
+                <span className="tt-detail-time" data-hue={courseHue(c.name)}>
+                  {WEEKDAY_LABELS[c.day]} · {t('timetable.slotLabel', { a: c.slotStart + 1, b: c.slotEnd + 1 })}
+                  <i>{SLOT_TIMES[c.slotStart][0]}–{SLOT_TIMES[c.slotEnd][1]}</i>
                 </span>
-              )}
-              <span className="tt-detail-weeks">{weekRangeLabel(c, WEEK_TYPE_LABELS)}</span>
-            </div>
-          ))}
+                <span className="tt-detail-meta">
+                  {c.place}
+                  {c.place && c.teachers ? ' · ' : ''}
+                  {c.teachers}
+                </span>
+                {(c.code || c.clazz) && (
+                  <span className="tt-detail-extras">
+                    {[c.code && `${t('timetable.courseCode')} ${c.code}`, c.clazz && `${t('timetable.courseClass')} ${c.clazz}`].filter(Boolean).join(' · ')}
+                  </span>
+                )}
+                <span className="tt-detail-weeks">{weekRangeLabel(c, WEEK_TYPE_LABELS)}</span>
+              </div>
+            ))}
+          </div>
           <div className="modal-actions tt-detail-actions">
             <ActionButton onClick={() => onEdit(course)}>{t('timetable.edit')}</ActionButton>
             <ActionButton variant="danger" onClick={() => onDelete(course)}>{t('timetable.delete')}</ActionButton>
+            <ActionButton onClick={onClose}>{t('modal.cancel')}</ActionButton>
           </div>
           {course.imported && <p className="tt-imported-hint">{t('timetable.importedHint')}</p>}
         </div>
@@ -536,6 +539,7 @@ export function AdjustModal({ open, timetable, onSave, onClose }) {
       open={open}
       title={t('timetable.adjustTitle')}
       confirmText={t('modal.save')}
+      scrollBody
       onConfirm={() => onSave(list)}
       onCancel={onClose}
     >

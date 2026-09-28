@@ -866,6 +866,12 @@
 }
 
 /* ── 课程详情 ── */
+/* 场次列表限高滑动：场次多时弹窗不超高，编辑/删除/取消按钮始终可见 */
+.tt-detail-list {
+  max-height: 45vh;
+  overflow-y: auto;
+}
+
 .tt-detail-item {
   display: flex;
   flex-direction: column;
