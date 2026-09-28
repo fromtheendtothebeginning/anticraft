@@ -447,6 +447,7 @@ button {
   font-size: 15px;
   font-weight: 800;
   letter-spacing: 0.02em;
+  padding-right: 26px; /* 避让右上角收起按钮 */
 }
 
 .golden-magic-timer {
@@ -484,6 +485,54 @@ button {
   font-size: 12px;
   cursor: pointer;
   text-decoration: underline;
+}
+
+/* 收起/展开：展开态右上角收起按钮 + 收起态左缘小金签 */
+.golden-magic-toggle {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: rgba(58, 45, 0, 0.14);
+  color: #3a2d00;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.golden-magic-toggle:hover {
+  background: rgba(58, 45, 0, 0.26);
+}
+.golden-magic-tab {
+  position: fixed;
+  left: 0;
+  top: 84px;
+  z-index: 950;
+  padding: 8px 5px;
+  border: none;
+  border-radius: 0 10px 10px 0;
+  background: linear-gradient(135deg, #f0c23a, #d4a400);
+  color: #3a2d00;
+  box-shadow: 0 6px 16px rgba(212, 164, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  animation: golden-magic-in 0.3s ease both;
+}
+.golden-magic-tab.golden-magic-active {
+  background: linear-gradient(135deg, #e8b400, #f6d158);
+}
+.golden-magic-tab-time {
+  font-size: 10px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
 }
 
 /* ---------- 移动端 markdown：KaTeX 公式 / 代码块角标压缩 ---------- */

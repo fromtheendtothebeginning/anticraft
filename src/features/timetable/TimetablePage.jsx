@@ -449,9 +449,6 @@ export default function TimetablePage() {
           ? <WeekBoard timetable={displayTt} week={week} today={today} now={now} showTimes={showTimes} onPick={setDetail} onPickEvent={setEventDetail} swipe={swipe} />
           : <DayList timetable={displayTt} week={week} day={day} today={today} now={now} onSetDay={setDay} onPick={setDetail} onPickEvent={setEventDetail} swipe={swipe} />}
 
-        {tt.courses.length === 0 && (
-          <p className="tt-empty">{t('timetable.empty')}<br />{t('timetable.emptyHint')}</p>
-        )}
         <p className="tt-localhint">{token ? t('timetable.syncHint') : t('timetable.savedLocally')}</p>
 
         <WeekNav

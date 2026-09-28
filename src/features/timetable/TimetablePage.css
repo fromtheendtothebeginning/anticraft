@@ -354,7 +354,6 @@
 .tt-course {
   margin: 2px;
   border: none;
-  border-left: 3px solid hsla(var(--tt-hue, 258), 70%, 52%, 0.55);
   border-radius: 8px;
   padding: 3px;
   display: flex;
@@ -377,7 +376,6 @@
 /* 已上完的课：去色相、整体置灰 */
 .tt-course.past {
   background: var(--neutral-soft);
-  border-left-color: transparent;
   color: var(--text-muted);
   opacity: 0.7;
 }
@@ -559,7 +557,6 @@
   border-radius: 10px;
   padding: 8px 12px;
   background: hsla(var(--tt-hue, 258), 70%, 58%, 0.14);
-  border-left: 3px solid hsla(var(--tt-hue, 258), 70%, 52%, 0.55);
   color: var(--text-primary);
 }
 
@@ -598,7 +595,6 @@
 .tt-dayrow.past .tt-dayrow-time,
 .tt-dayrow.past .tt-dayrow-card {
   background: var(--neutral-soft);
-  border-left-color: transparent;
 }
 
 .tt-dayrow.past .tt-dayrow-name,
@@ -644,13 +640,6 @@
 }
 
 /* ── 空态与提示 ── */
-.tt-empty {
-  text-align: center;
-  color: var(--text-muted);
-  margin-top: 18px;
-  line-height: 1.9;
-}
-
 .tt-localhint {
   font-size: 12px;
   color: var(--text-muted);
