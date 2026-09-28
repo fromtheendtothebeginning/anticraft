@@ -33,10 +33,7 @@
   font-size: 28px;
   font-weight: 700;
   margin: 0;
-  background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--text-primary);
 }
 
 .admin-tabs {
@@ -90,8 +87,8 @@
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, transparent, var(--accent-2), transparent);
-  animation: tabUnderline 0.4s ease;
+  background: var(--accent-1);
+  animation: tabUnderline 0.2s var(--t-ease);
 }
 
 @keyframes tabUnderline {
@@ -101,7 +98,7 @@
 
 /* 内容区域淡入动画 */
 .admin-section {
-  animation: fadeInUp 0.35s ease;
+  animation: fadeInUp 0.2s var(--t-ease);
 }
 
 @keyframes fadeInUp {
@@ -469,7 +466,7 @@
   bottom: 0;
   background: var(--border-color);
   border-radius: 20px;
-  transition: 0.3s;
+  transition: var(--t) var(--t-ease);
 }
 
 .reusable-slider::before {
@@ -481,7 +478,7 @@
   bottom: 3px;
   background: var(--white);
   border-radius: 50%;
-  transition: 0.3s;
+  transition: var(--t) var(--t-ease);
 }
 
 .reusable-toggle input:checked + .reusable-slider {

@@ -670,13 +670,34 @@
   padding: 10px 12px;
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-size: 14px;
   font-family: inherit;
   outline: none;
-  transition: border-color 0.2s;
+  transition: border-color var(--t) var(--t-ease);
   width: 100%;
+}
+
+/* 原生日期/时间控件视觉对齐文本输入框 */
+.tt-field input[type='date'],
+.tt-field input[type='time'] {
+  font-variant-numeric: tabular-nums;
+}
+.tt-field input[type='date']::-webkit-calendar-picker-indicator,
+.tt-field input[type='time']::-webkit-calendar-picker-indicator {
+  opacity: 0.55;
+  cursor: pointer;
+}
+.tt-field input[type='date']:hover::-webkit-calendar-picker-indicator,
+.tt-field input[type='time']:hover::-webkit-calendar-picker-indicator {
+  opacity: 1;
+}
+/* Chrome 内部行高导致的垂直不居中 */
+.tt-field input[type='date']::-webkit-date-and-time-value,
+.tt-field input[type='time']::-webkit-date-and-time-value {
+  text-align: left;
+  min-height: 1.4em;
 }
 
 .tt-field textarea {
@@ -712,7 +733,7 @@
 .tt-slot-inputs select {
   width: auto;
   flex: 1;
-  min-width: 64px;
+  min-width: 84px; /* HH:MM 完整显示，不被截断 */
 }
 
 /* 「至」分隔符：永不收缩，避免被两侧有实底的下拉盖住 */

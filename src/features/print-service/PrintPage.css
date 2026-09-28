@@ -24,7 +24,7 @@
   border-radius: 12px;
   background: var(--bg-card);
   /* 不用 both 填充：动画结束即撤掉 transform，避免持久层叠上下文把下拉菜单压在后面面板之下 */
-  animation: ps-in 0.32s ease-out;
+  animation: ps-in 0.2s ease-out;
 }
 
 .ps-panel-title {
@@ -184,7 +184,7 @@
   padding: 10px 14px;
   border: 1px solid var(--success, #2ea043);
   border-radius: 10px;
-  background: var(--success-soft, rgba(46, 160, 67, 0.12));
+  background: var(--success-soft);
   color: var(--success, #2ea043);
   font-size: 13px;
   line-height: 1.6;
@@ -196,7 +196,7 @@
   align-items: center;
   gap: 14px;
   flex-wrap: wrap;
-  animation: ps-in 0.32s ease-out;
+  animation: ps-in 0.2s ease-out;
 }
 
 .ps-account-main {
@@ -226,7 +226,7 @@
 
 .ps-balance-num {
   font-size: 20px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--accent-1);
 }
 
@@ -411,7 +411,7 @@
   border-radius: 10px;
   background: var(--bg-elevated);
   overflow: hidden;
-  animation: ps-in 0.3s ease-out;
+  animation: ps-in 0.2s ease-out;
   transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
 }
 
@@ -562,7 +562,7 @@
 }
 
 .ps-badge-ok {
-  background: var(--success-soft, rgba(46, 160, 67, 0.12));
+  background: var(--success-soft);
   border: 1px solid var(--success, #2ea043);
   color: var(--success, #2ea043);
 }

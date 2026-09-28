@@ -137,8 +137,9 @@ function ProfileEdit() {
   // 主题模式切换（浅色 ↔ 深色 渐变）
   const handleChangeTheme = (next) => {
     localStorage.setItem('theme', next)
+    // 过渡引擎只调用一次；不能派发合成 storage 事件——main.jsx 的监听会再调一次
+    // 过渡引擎，彼时 data-theme 已翻转、内联值未写入，快照会读到目标主题导致瞬时跳变
     changeThemeWithTransition(next)
-    window.dispatchEvent(new StorageEvent('storage', { key: 'theme' }))
     setTheme(next)
   }
 

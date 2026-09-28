@@ -1,53 +1,76 @@
-﻿@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
-
-:root {
+﻿:root {
+  /* Corporate Clean（企业简洁风）令牌 — 权威定义，themes.js light/dark 与此同步维护
+     原则：扁平蓝主色、灰阶中性、白卡细边、轻阴影、圆角 8/12、交互 ≤200ms、无光晕 */
   /* ── 背景 ── */
-  --bg-primary: #f8f9fa;
-  --bg-card: #ffffff;
-  --bg-elevated: #f5f5f8; /* 悬浮/次级卡片底 */
+  --bg-primary: #f8fafc;           /* slate-50 页面底 */
+  --bg-card: #ffffff;              /* 白卡片 */
+  --bg-elevated: #f1f5f9;          /* slate-100 次级卡片底 */
 
   /* ── 文字 ── */
-  --text-primary: #1a1a2e;
-  --text-secondary: #3a3a4e;
-  --text-muted: #4a4a5e;
+  --text-primary: #111827;         /* gray-900 标题 */
+  --text-secondary: #4b5563;       /* gray-600 正文 */
+  --text-muted: #6b7280;           /* gray-500 次要文字 */
 
-  /* ── 主色调（紫） ── */
-  --accent-1: #6c5ce7;
-  --accent-1-light: #8b7cf7;       /* 渐变亮端 */
-  --accent-1-hover: #5a4bd6;       /* 加深 */
-  --accent-1-soft: rgba(108, 92, 231, 0.1);        /* 浅紫底 */
-  --accent-1-soft-strong: rgba(108, 92, 231, 0.15); /* 略深紫底 */
-  --accent-1-border: rgba(108, 92, 231, 0.3);       /* 紫描边 */
+  /* ── 主色调（蓝 blue-600） ── */
+  --accent-1: #2563eb;
+  --accent-1-light: #3b82f6;       /* 亮端 blue-500 */
+  --accent-1-hover: #1d4ed8;       /* 加深 blue-700 */
+  --accent-1-soft: rgba(37, 99, 235, 0.08);        /* 浅蓝底 */
+  --accent-1-soft-strong: rgba(37, 99, 235, 0.12); /* 略深蓝底 */
+  --accent-1-border: rgba(37, 99, 235, 0.35);      /* 蓝描边 */
 
-  /* ── 辅色调（青） ── */
-  --accent-2: #00cec9;
-  --accent-2-hover: #00b894;       /* 加深 */
-  --accent-2-soft: rgba(0, 206, 201, 0.15); /* 浅青底 */
+  /* ── 辅色调（天蓝 sky-600，主蓝同族的区分色） ── */
+  --accent-2: #0284c7;
+  --accent-2-hover: #0369a1;       /* 加深 */
+  --accent-2-soft: rgba(2, 132, 199, 0.10); /* 浅天蓝底 */
 
-  /* ── 危险色（红） ── */
-  --danger: #e74c3c;
-  --danger-hover: #c0392b;
+  /* ── 危险色（红 red-600） ── */
+  --danger: #dc2626;
+  --danger-hover: #b91c1c;
+
+  /* ── 语义状态色（成功/警告；错误复用 --danger） ── */
+  --success: #16a34a;                              /* green-600 */
+  --success-soft: rgba(22, 163, 74, 0.12);
+  --warning: #d97706;                              /* amber-600 */
+  --warning-soft: rgba(217, 119, 6, 0.12);
 
   /* ── 信息色（蓝） ── */
-  --info: #2f6fd6;
-  --danger-soft: rgba(231, 76, 60, 0.1);        /* 浅红底 */
-  --danger-soft-strong: rgba(231, 76, 60, 0.15); /* 略深红底 */
-  --danger-border: rgba(231, 76, 60, 0.3);       /* 红描边 */
+  --info: #2563eb;
+  --danger-soft: rgba(220, 38, 38, 0.08);        /* 浅红底 */
+  --danger-soft-strong: rgba(220, 38, 38, 0.12); /* 略深红底 */
+  --danger-border: rgba(220, 38, 38, 0.3);       /* 红描边 */
 
   /* ── 中性色 ── */
   --white: #ffffff;
-  --border-color: #e2e2ef;
-  --neutral-soft: #e8e8e8;        /* 次级按钮底 */
-  --neutral-soft-hover: #d0d0d0;  /* 次级按钮 hover */
-  --overlay: rgba(0, 0, 0, 0.5);  /* 弹窗遮罩 */
+  --border-color: #e5e7eb;        /* gray-200 */
+  --neutral-soft: #f3f4f6;        /* gray-100 次级按钮底 */
+  --neutral-soft-hover: #e5e7eb;  /* gray-200 次级按钮 hover */
+  --overlay: rgba(15, 23, 42, 0.5);  /* 弹窗遮罩 */
 
-  /* ── 光晕 ── */
-  --glow-accent: rgba(108, 92, 231, 0.08);
-  --glow-accent-strong: rgba(108, 92, 231, 0.4);
-  --glow-cyan: rgba(0, 206, 201, 0.06);
-  --glow-cyan-strong: rgba(0, 206, 201, 0.4);
+  /* ── 阴影/光晕（去光晕化：收敛为轻微投影，供存量引用兜底） ── */
+  --glow-accent: rgba(37, 99, 235, 0.10);
+  --glow-accent-strong: rgba(37, 99, 235, 0.25);
+  --glow-cyan: rgba(2, 132, 199, 0.08);
+  --glow-cyan-strong: rgba(2, 132, 199, 0.25);
 
-  --progress-gradient: linear-gradient(90deg, #6c5ce7, #00cec9);
+  --progress-gradient: linear-gradient(90deg, #2563eb, #3b82f6);
+
+  /* ── 首页背景装饰（细点阵 + 顶部微光晕；渐变实体收在令牌里，App.css 只引用） ── */
+  --bg-dot-color: rgba(15, 23, 42, 0.07);
+  --bg-dot-pattern: radial-gradient(var(--bg-dot-color) 1.2px, transparent 1.2px);
+  --bg-halo-color: rgba(37, 99, 235, 0.10);
+  --bg-halo: radial-gradient(560px 300px at 50% 0%, var(--bg-halo-color), transparent 72%);
+
+  /* ── Corporate Clean 基元（与主题切换无关，仅在 :root） ── */
+  --radius-sm: 8px;   /* rounded-lg：按钮/输入框/下拉项 */
+  --radius-md: 12px;  /* rounded-xl：卡片/弹窗/面板 */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.06);
+  --ring-color: #3b82f6;  /* focus ring blue-500 */
+  --t-fast: 150ms;    /* 按钮等小控件过渡 */
+  --t: 200ms;         /* 卡片等容器过渡上限 */
+  --t-ease: ease-out;
+  --font-sans: system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
 
   --max-width: 1200px;
 
@@ -70,37 +93,39 @@
 /* ── 黑夜模式（手动选择 data-theme="dark" 时生效） ──
    同步维护：下方 @media 中的同组变量须与此一致 */
 :root[data-theme='dark'] {
-  --bg-primary: #0f1014;
-  --bg-card: #1a1b22;
-  --bg-elevated: #23242e;
-  --text-primary: #e8e8f0;
-  --text-secondary: #b0b2c0;
-  --text-muted: #7a7c8c;
-  --accent-1: #7c6cf0;
-  --accent-1-light: #9d8ffa;
-  --accent-1-hover: #8a7bf5;
-  --accent-1-soft: rgba(124, 108, 240, 0.2);
-  --accent-1-soft-strong: rgba(124, 108, 240, 0.28);
-  --accent-1-border: rgba(124, 108, 240, 0.45);
-  --accent-2: #2ee6e0;
-  --accent-2-hover: #3af0c0;
-  --accent-2-soft: rgba(46, 230, 224, 0.22);
-  --danger: #e0503f;
-  --danger-hover: #ef6a55;
-  --danger-soft: rgba(240, 106, 88, 0.18);
-  --danger-soft-strong: rgba(240, 106, 88, 0.26);
-  --danger-border: rgba(240, 106, 88, 0.45);
-  --info: #5aa2f0;
+  --bg-primary: #0f172a;           /* slate-900 */
+  --bg-card: #1e293b;              /* slate-800 */
+  --bg-elevated: #243244;
+  --text-primary: #f1f5f9;         /* slate-100 */
+  --text-secondary: #cbd5e1;       /* slate-300 */
+  --text-muted: #94a3b8;           /* slate-400 */
+  --accent-1: #3b82f6;             /* blue-500 */
+  --accent-1-light: #60a5fa;       /* blue-400 */
+  --accent-1-hover: #2563eb;
+  --accent-1-soft: rgba(59, 130, 246, 0.16);
+  --accent-1-soft-strong: rgba(59, 130, 246, 0.24);
+  --accent-1-border: rgba(59, 130, 246, 0.45);
+  --accent-2: #0ea5e9;             /* sky-500 */
+  --accent-2-hover: #38bdf8;
+  --accent-2-soft: rgba(14, 165, 233, 0.18);
+  --danger: #ef4444;
+  --danger-hover: #f87171;
+  --danger-soft: rgba(248, 113, 113, 0.14);
+  --danger-soft-strong: rgba(248, 113, 113, 0.22);
+  --danger-border: rgba(248, 113, 113, 0.4);
+  --info: #60a5fa;
   --white: #ffffff;
-  --border-color: #2e2f3a;
-  --neutral-soft: #33343f;
-  --neutral-soft-hover: #3d3e4b;
-  --overlay: rgba(0, 0, 0, 0.6);
-  --glow-accent: rgba(124, 108, 240, 0.15);
-  --glow-accent-strong: rgba(124, 108, 240, 0.5);
-  --glow-cyan: rgba(46, 230, 224, 0.1);
-  --glow-cyan-strong: rgba(46, 230, 224, 0.5);
-  --progress-gradient: linear-gradient(90deg, #7c6cf0, #2ee6e0);
+  --border-color: #334155;         /* slate-700 */
+  --neutral-soft: #334155;
+  --neutral-soft-hover: #46536b;
+  --overlay: rgba(2, 6, 23, 0.6);
+  --glow-accent: rgba(59, 130, 246, 0.16);
+  --glow-accent-strong: rgba(59, 130, 246, 0.4);
+  --glow-cyan: rgba(14, 165, 233, 0.12);
+  --glow-cyan-strong: rgba(14, 165, 233, 0.4);
+  --progress-gradient: linear-gradient(90deg, #3b82f6, #0ea5e9);
+  --bg-dot-color: rgba(148, 163, 184, 0.07);
+  --bg-halo-color: rgba(59, 130, 246, 0.12);
   color-scheme: dark;
 
   /* ── GitHub 高亮主题（深色，github-dark.css 取色） ── */
@@ -122,37 +147,39 @@
 /* ── 跟随系统（系统为暗色且用户未强制浅色时生效） ── */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --bg-primary: #0f1014;
-    --bg-card: #1a1b22;
-    --bg-elevated: #23242e;
-    --text-primary: #e8e8f0;
-    --text-secondary: #b0b2c0;
-    --text-muted: #7a7c8c;
-    --accent-1: #7c6cf0;
-    --accent-1-light: #9d8ffa;
-    --accent-1-hover: #8a7bf5;
-    --accent-1-soft: rgba(124, 108, 240, 0.2);
-    --accent-1-soft-strong: rgba(124, 108, 240, 0.28);
-    --accent-1-border: rgba(124, 108, 240, 0.45);
-    --accent-2: #2ee6e0;
-    --accent-2-hover: #3af0c0;
-    --accent-2-soft: rgba(46, 230, 224, 0.22);
-    --danger: #e0503f;
-    --danger-hover: #ef6a55;
-    --danger-soft: rgba(240, 106, 88, 0.18);
-    --danger-soft-strong: rgba(240, 106, 88, 0.26);
-    --danger-border: rgba(240, 106, 88, 0.45);
-    --info: #5aa2f0;
+    --bg-primary: #0f172a;           /* slate-900 */
+    --bg-card: #1e293b;              /* slate-800 */
+    --bg-elevated: #243244;
+    --text-primary: #f1f5f9;         /* slate-100 */
+    --text-secondary: #cbd5e1;       /* slate-300 */
+    --text-muted: #94a3b8;           /* slate-400 */
+    --accent-1: #3b82f6;             /* blue-500 */
+    --accent-1-light: #60a5fa;       /* blue-400 */
+    --accent-1-hover: #2563eb;
+    --accent-1-soft: rgba(59, 130, 246, 0.16);
+    --accent-1-soft-strong: rgba(59, 130, 246, 0.24);
+    --accent-1-border: rgba(59, 130, 246, 0.45);
+    --accent-2: #0ea5e9;             /* sky-500 */
+    --accent-2-hover: #38bdf8;
+    --accent-2-soft: rgba(14, 165, 233, 0.18);
+    --danger: #ef4444;
+    --danger-hover: #f87171;
+    --danger-soft: rgba(248, 113, 113, 0.14);
+    --danger-soft-strong: rgba(248, 113, 113, 0.22);
+    --danger-border: rgba(248, 113, 113, 0.4);
+    --info: #60a5fa;
     --white: #ffffff;
-    --border-color: #2e2f3a;
-    --neutral-soft: #33343f;
-    --neutral-soft-hover: #3d3e4b;
-    --overlay: rgba(0, 0, 0, 0.6);
-    --glow-accent: rgba(124, 108, 240, 0.15);
-    --glow-accent-strong: rgba(124, 108, 240, 0.5);
-    --glow-cyan: rgba(46, 230, 224, 0.1);
-    --glow-cyan-strong: rgba(46, 230, 224, 0.5);
-    --progress-gradient: linear-gradient(90deg, #7c6cf0, #2ee6e0);
+    --border-color: #334155;         /* slate-700 */
+    --neutral-soft: #334155;
+    --neutral-soft-hover: #46536b;
+    --overlay: rgba(2, 6, 23, 0.6);
+    --glow-accent: rgba(59, 130, 246, 0.16);
+    --glow-accent-strong: rgba(59, 130, 246, 0.4);
+    --glow-cyan: rgba(14, 165, 233, 0.12);
+    --glow-cyan-strong: rgba(14, 165, 233, 0.4);
+    --progress-gradient: linear-gradient(90deg, #3b82f6, #0ea5e9);
+    --bg-dot-color: rgba(148, 163, 184, 0.07);
+    --bg-halo-color: rgba(59, 130, 246, 0.12);
     color-scheme: dark;
 
     --hljs-keyword: #ff7b72;
@@ -183,13 +210,26 @@ html {
 }
 
 body {
-  font-family: 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--font-sans);
   background-color: var(--bg-primary);
   color: var(--text-primary);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+}
+
+/* Corporate Clean 焦点环：ring-2 + offset-2（WCAG 2.1 AA 焦点指示） */
+:focus-visible {
+  outline: 2px solid var(--ring-color);
+  outline-offset: 2px;
+}
+
+/* 文本输入类例外：点击输入时焦点指示 = 光标 + 边框变色，整圈描边过于突兀 */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
 }
 
 ::selection {
@@ -445,14 +485,14 @@ button {
 }
 .golden-magic-title {
   font-size: 15px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.02em;
   padding-right: 26px; /* 避让右上角收起按钮 */
 }
 
 .golden-magic-timer {
   font-size: 22px;
-  font-weight: 800;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.06em;
 }
@@ -530,7 +570,7 @@ button {
 }
 .golden-magic-tab-time {
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.04em;
 }

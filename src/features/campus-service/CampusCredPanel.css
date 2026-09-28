@@ -70,7 +70,7 @@
 
 .ccp-chip-ok {
   color: var(--success, #2ea043);
-  background: var(--success-soft, rgba(46, 160, 67, 0.12));
+  background: var(--success-soft, rgba(22, 163, 74, 0.12));
   border-color: var(--success, #2ea043);
 }
 

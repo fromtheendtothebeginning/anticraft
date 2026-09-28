@@ -33,10 +33,7 @@
   font-size: 28px;
   font-weight: 700;
   margin: 0;
-  background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--text-primary);
 }
 
 .my-unread-count {
@@ -101,7 +98,7 @@
 }
 
 .my-tab.active {
-  background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+  background: var(--accent-1);
   border-color: transparent;
   color: #fff;
 }
@@ -241,7 +238,7 @@
 }
 
 .ai-seg-option.active {
-  background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+  background: var(--accent-1);
   border-color: transparent;
   color: #fff;
 }
@@ -272,7 +269,7 @@
 }
 
 .ai-test.ok {
-  background: var(--success-soft, rgba(46, 160, 67, 0.12));
+  background: var(--success-soft);
   border: 1px solid var(--success, #2ea043);
   color: var(--success, #2ea043);
 }
@@ -475,7 +472,7 @@
 
 .ai-fav-btn.active {
   color: #f5b942;
-  background: rgba(245, 185, 66, 0.12);
+  background: var(--warning-soft);
   border-color: #f5b942;
 }
 
@@ -557,8 +554,8 @@
   border: 1px solid var(--border-color);
   border-radius: 12px;
   cursor: default;
-  transition: transform 0.15s, box-shadow 0.2s, border-color 0.2s;
-  animation: my-item-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transition: transform var(--t-fast) var(--t-ease), box-shadow var(--t) var(--t-ease), border-color var(--t) var(--t-ease);
+  animation: my-item-in 0.2s var(--t-ease) both;
 }
 
 @keyframes my-item-in {

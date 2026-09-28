@@ -208,7 +208,7 @@ function ProjectEditorPage() {
             <div className="editor-bg-color-row">
               <input
                 type="color"
-                value={bgColor || '#6c5ce7'}
+                value={bgColor || '#2563eb'}
                 onChange={e => setBgColor(e.target.value)}
               />
             </div>

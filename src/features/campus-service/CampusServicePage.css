@@ -66,7 +66,7 @@
 }
 
 .cs-badge-ok {
-  background: var(--success-soft, rgba(46, 160, 67, 0.12));
+  background: var(--success-soft, rgba(22, 163, 74, 0.12));
   border: 1px solid var(--success, #2ea043);
   color: var(--success, #2ea043);
 }
@@ -101,8 +101,9 @@
   border: 2px solid currentColor;
   border-top-color: transparent;
   border-radius: 50%;
-  animation: cs-spin 0.8s linear infinite;
   vertical-align: -2px;
+  /* 功能性 loading 指示器（非装饰循环），豁免 200ms 上限 */
+  animation: cs-spin 0.8s linear infinite;
 }
 
 @keyframes cs-spin {
@@ -234,7 +235,7 @@
 
 .cs-stat b {
   font-size: 30px;
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1.1;
   color: var(--text-primary);
 }
@@ -324,7 +325,7 @@
 
 .cs-group-ok {
   color: var(--success, #2ea043) !important;
-  background: var(--success-soft, rgba(46, 160, 67, 0.12)) !important;
+  background: var(--success-soft, rgba(22, 163, 74, 0.12)) !important;
   border-color: var(--success, #2ea043) !important;
 }
 
@@ -359,7 +360,7 @@
   /* 内边距/虚线边框放在容器上并一起过渡：grid 0fr 收得掉内容，收不掉子元素的 padding+border */
   padding: 0 14px;
   border-top: 0 dashed transparent;
-  transition: grid-template-rows 0.28s ease, padding 0.28s ease;
+  transition: grid-template-rows 0.2s ease, padding 0.2s ease;
 }
 
 .cs-group-body.is-open {
@@ -509,7 +510,7 @@
 
 .cs-ecard-code {
   font-size: 22px;
-  font-weight: 800;
+  font-weight: 600;
   letter-spacing: 4px;
   color: var(--text-primary);
   margin: 8px 0;
@@ -671,7 +672,7 @@
   font-size: 13px;
   font-weight: 600;
   color: var(--success, #2ea043);
-  background: var(--success-soft, rgba(46, 160, 67, 0.12));
+  background: var(--success-soft, rgba(22, 163, 74, 0.12));
   border: 1px solid var(--success, #2ea043);
 }
 
@@ -800,7 +801,7 @@
 .cs-elec-line {
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  animation: cs-elec-draw 0.85s ease-out forwards;
+  animation: cs-elec-draw 0.2s ease-out forwards;
 }
 
 @keyframes cs-elec-draw {
@@ -811,7 +812,7 @@
   transform-box: fill-box;
   transform-origin: center;
   opacity: 0;
-  animation: cs-elec-dot-in 0.4s ease-out forwards;
+  animation: cs-elec-dot-in 0.2s ease-out forwards;
 }
 
 @keyframes cs-elec-dot-in {
@@ -854,7 +855,7 @@
 
 .cs-recharge-current b {
   font-size: 18px;
-  font-weight: 800;
+  font-weight: 600;
   color: var(--text-primary);
 }
 
@@ -896,14 +897,14 @@
 
 .cs-toast-check {
   font-size: 15px;
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1;
   color: var(--accent-1);
 }
 
 /* 淡入 + 上滑（减弱动效偏好下不加此类，直接显示最终状态） */
 .cs-toast-in {
-  animation: cs-toast-in 0.28s ease-out;
+  animation: cs-toast-in 0.2s ease-out;
 }
 
 @keyframes cs-toast-in {
@@ -1005,11 +1006,11 @@
   gap: 6px;
 }
 
-/* 事后补录标签（沿用 Second_Class_Notification 的紫色标记习惯） */
+/* 事后补录标签（沿用 Second_Class_Notification 的主题色标记习惯） */
 .cs-act-backfill {
-  background: rgba(139, 92, 246, 0.12);
-  border: 1px solid #8b5cf6;
-  color: #8b5cf6;
+  background: var(--accent-1-soft);
+  border: 1px solid var(--accent-1-border);
+  color: var(--accent-1);
 }
 
 .cs-act-name {

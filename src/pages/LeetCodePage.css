@@ -23,10 +23,7 @@
   font-size: 26px;
   font-weight: 700;
   margin: 0 0 8px;
-  background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--accent-1);
 }
 
 .lc-subtitle {
@@ -52,7 +49,7 @@
   font-size: 11px;
   padding: 2px 8px;
   border-radius: 999px;
-  background: #1976d2;
+  background: var(--accent-1);
   color: var(--white);
   cursor: help;
   white-space: nowrap;
@@ -70,13 +67,19 @@
   background: var(--bg-card);
   border: 1px dashed var(--border-color);
   font-size: 13px;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--t-fast) var(--t-ease), box-shadow var(--t-fast) var(--t-ease);
+}
+
+.lc-mine:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 .lc-mine-ranked {
   border: 1px solid var(--accent-1);
   border-left: 4px solid var(--accent-1);
   background: var(--accent-1-soft);
-  box-shadow: 0 4px 16px var(--accent-1-soft);
 }
 
 .lc-mine-label {
@@ -88,7 +91,7 @@
 
 .lc-mine-rank {
   font-size: 20px;
-  font-weight: 800;
+  font-weight: 600;
   color: var(--accent-1);
 }
 
@@ -247,7 +250,7 @@
   font-size: 12px;
   font-weight: 600;
   color: var(--accent-1);
-  animation: lc-tip-in 0.5s ease;
+  animation: lc-tip-in 0.2s var(--t-ease);
 }
 
 @keyframes lc-tip-in {
@@ -270,13 +273,8 @@
   height: 7px;
   border-radius: 50%;
   background: var(--accent-2);
-  animation: heartbeat-pulse 2s ease-in-out infinite;
 }
 
-@keyframes heartbeat-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
-}
 
 .lc-bind-link {
   font-size: 13px;
@@ -327,7 +325,7 @@
   background: var(--bg-card);
   border-bottom: 1px solid var(--border-color);
   font-size: 14px;
-  animation: lc-row-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: lc-row-in 0.2s var(--t-ease) both;
   position: relative;
 }
 
@@ -378,7 +376,7 @@
 }
 
 .lc-medal-silver {
-  color: #9aa5b1;
+  color: #9ca3af;
 }
 
 .lc-medal-bronze {
@@ -398,7 +396,7 @@
   justify-content: center;
   font-weight: 700;
   color: var(--white);
-  background: linear-gradient(135deg, var(--accent-1), var(--accent-1-light));
+  background: var(--accent-1);
 }
 
 .lc-col-user {
@@ -489,7 +487,7 @@
   font-size: 11px;
   padding: 2px 8px;
   border-radius: 999px;
-  background: #1e4f8f;
+  background: var(--accent-1);
   color: var(--white);
   cursor: help;
   white-space: nowrap;

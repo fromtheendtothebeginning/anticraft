@@ -5,6 +5,7 @@ import CategoryDropdown from '../components/CategoryDropdown'
 import { renderMd } from '../utils/markdown'
 import { apiFetch } from '../utils/api'
 import CodeEditor from '../components/CodeEditor'
+import Modal from '../components/Modal'
 import { UiIcon } from '../components/Icons'
 import { BLOG_CATEGORIES } from '../constants'
 import { t } from '../i18n'
@@ -24,6 +25,8 @@ function BlogEditorPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [user, setUser] = useState(null)
+  const [imageModalOpen, setImageModalOpen] = useState(false)
+  const [imageUrl, setImageUrl] = useState('')
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -56,18 +59,25 @@ function BlogEditorPage() {
   }, [])
 
   const handleInsertImage = () => {
-    const url = prompt(t('blogEditor.imagePrompt'))
+    setImageUrl('')
+    setImageModalOpen(true)
+  }
+
+  const confirmInsertImage = () => {
+    const url = imageUrl.trim()
     if (!url) return
     const ta = textareaRef.current
+    const imgTag = `\n![图片](${url})\n`
     if (!ta) {
-      setContent(c => c + `\n![图片](${url})\n`)
+      setContent(c => c + imgTag)
+      setImageModalOpen(false)
       return
     }
     const start = ta.selectionStart
     const end = ta.selectionEnd
-    const imgTag = `\n![图片](${url})\n`
     const newContent = content.slice(0, start) + imgTag + content.slice(end)
     setContent(newContent)
+    setImageModalOpen(false)
     setTimeout(() => {
       ta.focus()
       ta.selectionStart = ta.selectionEnd = start + imgTag.length
@@ -184,6 +194,26 @@ function BlogEditorPage() {
           </div>
         </div>
       </div>
+
+      <Modal
+        open={imageModalOpen}
+        title={t('blogEditor.imageBed')}
+        confirmText={t('blogEditor.insertImage')}
+        onCancel={() => setImageModalOpen(false)}
+        onConfirm={confirmInsertImage}
+        confirmDisabled={!imageUrl.trim()}
+      >
+        <p className="modal-hint">{t('blogEditor.imagePrompt')}</p>
+        <input
+          type="text"
+          className="modal-input"
+          placeholder="https://"
+          value={imageUrl}
+          onChange={e => setImageUrl(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') confirmInsertImage() }}
+          autoFocus
+        />
+      </Modal>
     </div>
   )
 }

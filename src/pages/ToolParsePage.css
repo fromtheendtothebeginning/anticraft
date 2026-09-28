@@ -37,10 +37,7 @@
   font-size: 26px;
   font-weight: 700;
   margin: 0 0 8px;
-  background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--text-primary);
 }
 
 .tool-subtitle {

@@ -8,12 +8,12 @@
   min-height: 100vh;
 }
 
-/* ---------- 滚动揭示动画 ---------- */
+/* ---------- 滚动揭示动画（企业 UI：利落 200ms） ---------- */
 .scroll-reveal {
   opacity: 0;
-  transform: translateY(48px);
-  transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
-              transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  transform: translateY(12px);
+  transition: opacity var(--t) var(--t-ease),
+              transform var(--t) var(--t-ease);
 }
 
 .scroll-reveal.revealed {
@@ -21,55 +21,34 @@
   transform: translateY(0);
 }
 
-/* ---------- 背景 ---------- */
+/* ---------- 背景（Corporate Clean：细点阵 + 顶部微光晕；渐变实体在 index.css 令牌） ---------- */
 .bg-grid {
   position: fixed;
   inset: 0;
-  background-image:
-    linear-gradient(var(--accent-1-soft) 1px, transparent 1px),
-    linear-gradient(90deg, var(--accent-1-soft) 1px, transparent 1px);
-  background-size: 60px 60px;
+  background-image: var(--bg-dot-pattern);
+  background-size: 26px 26px;
   pointer-events: none;
   z-index: 0;
 }
 
 .bg-glow {
   position: fixed;
-  border-radius: 50%;
-  filter: blur(100px);
   pointer-events: none;
   z-index: 0;
-  opacity: 0;
-  transition: opacity 1.5s ease;
-}
-
-.mounted .bg-glow {
-  opacity: 1;
 }
 
 .glow-1 {
-  width: 600px;
-  height: 600px;
-  top: -200px;
-  right: -100px;
-  background: radial-gradient(circle, var(--accent-1-soft-strong), transparent 70%);
-}
-
-.glow-2 {
-  width: 500px;
-  height: 500px;
-  bottom: -150px;
-  left: -100px;
-  background: radial-gradient(circle, var(--glow-cyan), transparent 70%);
-}
-
-.glow-3 {
-  width: 400px;
-  height: 400px;
-  top: 50%;
+  top: -170px;
   left: 50%;
-  transform: translate(-50%, -50%);
-  background: radial-gradient(circle, rgba(253, 121, 168, 0.06), transparent 70%);
+  transform: translateX(-50%);
+  width: 920px;
+  height: 460px;
+  background: var(--bg-halo);
+}
+
+.glow-2,
+.glow-3 {
+  display: none;
 }
 
 /* ---------- 导航 ---------- */
@@ -79,13 +58,11 @@
   left: 0;
   right: 0;
   z-index: 100;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   background: var(--bg-card);
   border-bottom: 1px solid var(--border-color);
   opacity: 0;
-  transform: translateY(-20px);
-  transition: opacity 0.8s ease, transform 0.8s ease;
+  transform: translateY(-8px);
+  transition: opacity var(--t) var(--t-ease), transform var(--t) var(--t-ease);
 }
 
 .mounted .navbar {
@@ -151,18 +128,17 @@
   height: 32px;
   border-radius: 50%;
   overflow: hidden;
-  background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+  background: var(--accent-1);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: box-shadow var(--t-fast) var(--t-ease);
   cursor: pointer;
   flex-shrink: 0;
 }
 
 .nav-user-avatar:hover {
-  transform: scale(1.1);
-  box-shadow: 0 0 16px var(--glow-accent-strong);
+  box-shadow: var(--shadow-md);
 }
 
 .nav-avatar-img {
@@ -220,7 +196,7 @@
   width: 0;
   height: 1.5px;
   background: var(--accent-1);
-  transition: width 0.3s ease;
+  transition: width var(--t-fast) var(--t-ease);
 }
 
 .nav-links a:hover {
@@ -234,7 +210,7 @@
 .nav-item-active,
 .nav-links .nav-item-active,
 .nav-dropdown-trigger.nav-item-active {
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text-primary);
 }
 
@@ -307,7 +283,7 @@
   width: 0;
   height: 1.5px;
   background: var(--accent-1);
-  transition: width 0.3s ease;
+  transition: width var(--t-fast) var(--t-ease);
 }
 
 .nav-dropdown-trigger .arrow-down {
@@ -332,20 +308,18 @@
   position: absolute;
   top: 100%;
   left: 50%;
-  transform: translateX(-50%) translateY(-8px) scale(0.96);
+  transform: translateX(-50%) translateY(-4px) scale(0.98);
   background: var(--bg-card);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
   border: 1px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 12px 6px 6px;
   min-width: 130px;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.25s cubic-bezier(0.22, 1, 0.36, 1),
-              transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
-              visibility 0.25s;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1);
+  transition: opacity var(--t) var(--t-ease),
+              transform var(--t) var(--t-ease),
+              visibility var(--t);
+  box-shadow: var(--shadow-md);
   z-index: 200;
   transition-delay: 0s;
 }
@@ -409,18 +383,23 @@
 
 .nav-login-btn {
   padding: 7px 18px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, var(--accent-1), var(--accent-1-light));
+  border-radius: var(--radius-sm);
+  background: var(--accent-1);
   color: var(--white) !important;
   font-size: 13px;
   font-weight: 600;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 16px var(--accent-1-border);
+  transition: all var(--t-fast) var(--t-ease);
+  box-shadow: var(--shadow-sm);
 }
 
 .nav-login-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px var(--glow-accent-strong) !important;
+  background: var(--accent-1-hover);
+  box-shadow: var(--shadow-md) !important;
+}
+
+.nav-login-btn:active {
+  transform: translateY(0) scale(0.98);
 }
 
 .nav-login-btn::after {
@@ -484,7 +463,7 @@
     border-left: 1px solid var(--border-color);
     overflow-y: auto;
     transform: translateX(100%);
-    transition: transform 0.3s ease;
+    transition: transform var(--t) var(--t-ease);
   }
 
   .nav-drawer.open {
@@ -499,7 +478,7 @@
     background: rgba(0, 0, 0, 0.5);
     opacity: 0;
     visibility: hidden;
-    transition: opacity 0.3s ease, visibility 0.3s;
+    transition: opacity var(--t) var(--t-ease), visibility var(--t);
   }
 
   .nav-drawer-overlay.show {
@@ -549,8 +528,8 @@
     padding: 8px;
     background: var(--bg-card);
     border: 1px solid var(--border-color);
-    border-radius: 12px;
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
     z-index: 60; /* 高于页面内容（卡片 hover 5 / 行 5 / admin 10），低于导航（100） */
   }
 
@@ -584,9 +563,8 @@
 
 .hero-content {
   opacity: 0;
-  transform: translateY(40px);
-  transition: opacity 1s ease, transform 1s ease;
-  transition-delay: 0.3s;
+  transform: translateY(12px);
+  transition: opacity var(--t) var(--t-ease), transform var(--t) var(--t-ease);
 }
 
 .mounted .hero-content {
@@ -601,25 +579,20 @@
   padding: 6px 16px;
   border: 1px solid var(--border-color);
   border-radius: 100px;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
   font-size: 12px;
   font-weight: 500;
   color: var(--text-muted);
-  letter-spacing: 0.08em;
+  letter-spacing: 0.02em;
   margin-bottom: 32px;
-  text-transform: uppercase;
 }
 
 .badge-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--accent-2);
-  animation: pulse-dot 2s ease-in-out infinite;
-}
-
-@keyframes pulse-dot {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.5; transform: scale(0.8); }
+  background: var(--accent-1);
 }
 
 .hero-title {
@@ -629,13 +602,10 @@
 
 .title-en {
   display: block;
-  font-size: clamp(48px, 10vw, 96px);
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent-1) 50%, var(--accent-2) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  font-size: clamp(44px, 9vw, 80px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
 }
 
 .title-divider {
@@ -677,14 +647,14 @@
   align-items: center;
   gap: 8px;
   padding: 12px 28px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   font-size: 15px;
   font-weight: 500;
-  transition: all 0.3s ease;
+  transition: all var(--t-fast) var(--t-ease);
   cursor: pointer;
 }
 
-/* ── ActionButton 统一操作按钮（仿 .btn-primary 渐变主色；颜色走主题变量，新主题自动适配）── */
+/* ── ActionButton 统一操作按钮（Corporate Clean：扁平主色 + 轻阴影 + 按压反馈）── */
 .action-btn {
   display: inline-flex;
   align-items: center;
@@ -692,24 +662,26 @@
   gap: 6px;
   padding: 9px 20px;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   font-family: inherit;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   border: none;
-  background: linear-gradient(135deg, var(--accent-1), var(--accent-1-light));
+  background: var(--accent-1);
   color: #fff;
-  box-shadow: 0 2px 10px var(--accent-1-border);
-  transition: all 0.2s;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--t-fast) var(--t-ease);
   white-space: nowrap;
 }
 .action-btn:hover:not(:disabled) {
   color: #fff;
+  background: var(--accent-1-hover);
   transform: translateY(-1px);
-  box-shadow: 0 4px 16px var(--glow-accent-strong);
+  box-shadow: var(--shadow-md);
 }
 .action-btn:active:not(:disabled) {
-  transform: translateY(0);
+  transform: translateY(0) scale(0.98);
+  box-shadow: var(--shadow-sm);
 }
 .action-btn:disabled {
   opacity: 0.5;
@@ -717,46 +689,54 @@
 }
 /* 变体：次级描边（次要操作） */
 .action-btn-secondary {
-  background: transparent;
+  background: var(--bg-card);
   border: 1px solid var(--border-color);
   color: var(--text-secondary);
-  box-shadow: none;
+  box-shadow: var(--shadow-sm);
 }
 .action-btn-secondary:hover:not(:disabled) {
+  background: var(--bg-card);
   border-color: var(--accent-1);
   color: var(--accent-1);
-  box-shadow: none;
+  box-shadow: var(--shadow-sm);
 }
 /* 变体：危险（删除/移除） */
 .action-btn-danger {
-  background: linear-gradient(135deg, var(--danger), var(--danger-hover));
+  background: var(--danger);
   color: #fff;
-  box-shadow: 0 2px 10px var(--danger-soft-strong);
+  box-shadow: var(--shadow-sm);
 }
 .action-btn-danger:hover:not(:disabled) {
   color: #fff;
+  background: var(--danger-hover);
 }
 /* 尺寸：紧凑（区块头工具行） */
 .action-btn-sm {
   padding: 6px 14px;
   font-size: 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--accent-1), var(--accent-1-light));
+  background: var(--accent-1);
   color: var(--white);
   border: none;
-  box-shadow: 0 4px 20px var(--accent-1-border);
+  box-shadow: var(--shadow-sm);
 }
 
 .btn-primary:hover {
+  background: var(--accent-1-hover);
   transform: translateY(-2px);
-  box-shadow: 0 8px 30px var(--glow-accent-strong);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-primary:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow: var(--shadow-sm);
 }
 
 .btn-arrow {
-  transition: transform 0.3s ease;
+  transition: transform var(--t-fast) var(--t-ease);
 }
 
 .btn-primary:hover .btn-arrow {
@@ -764,15 +744,19 @@
 }
 
 .btn-secondary {
-  background: transparent;
+  background: var(--bg-card);
   color: var(--text-secondary);
   border: 1px solid var(--border-color);
 }
 
 .btn-secondary:hover {
   border-color: var(--accent-1);
-  color: var(--text-primary);
-  background: var(--accent-1-soft);
+  color: var(--accent-1);
+  background: var(--bg-card);
+}
+
+.btn-secondary:active {
+  transform: scale(0.98);
 }
 
 /* ---------- 滚动指示 ---------- */
@@ -784,8 +768,7 @@
   align-items: center;
   gap: 8px;
   opacity: 0;
-  transition: opacity 1s ease;
-  transition-delay: 1.5s;
+  transition: opacity var(--t) var(--t-ease);
 }
 
 .mounted .hero-scroll {
@@ -795,29 +778,20 @@
 .scroll-line {
   width: 1px;
   height: 40px;
-  background: linear-gradient(to bottom, var(--accent-1), transparent);
-  animation: scroll-line 2s ease-in-out infinite;
-}
-
-@keyframes scroll-line {
-  0% { transform: scaleY(0); transform-origin: top; opacity: 1; }
-  50% { transform: scaleY(1); transform-origin: top; opacity: 1; }
-  51% { transform: scaleY(1); transform-origin: bottom; opacity: 1; }
-  100% { transform: scaleY(0); transform-origin: bottom; opacity: 0; }
+  background: var(--border-color);
 }
 
 .scroll-text {
   font-size: 11px;
   color: var(--text-muted);
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 /* ---------- 通用 Section ---------- */
 .section {
   position: relative;
   z-index: 1;
-  padding: 120px 24px;
+  padding: 80px 24px;
 }
 
 .section-inner {
@@ -827,22 +801,16 @@
 
 .section-header {
   text-align: center;
-  margin-bottom: 64px;
+  margin-bottom: 48px;
 }
 
 .section-tag {
-  display: inline-block;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--accent-1);
-  letter-spacing: 0.15em;
-  margin-bottom: 16px;
-  text-transform: uppercase;
+  display: none; /* Corporate Clean：不放 tiny uppercase eyebrow */
 }
 
 .section-title {
-  font-size: clamp(28px, 4vw, 40px);
-  font-weight: 700;
+  font-size: clamp(26px, 3.5vw, 36px);
+  font-weight: 600;
   margin-bottom: 16px;
   letter-spacing: -0.02em;
 }
@@ -865,12 +833,12 @@
 .about-card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: 16px;
+  border-radius: var(--radius-md);
   padding: 40px 32px;
-  transition: all 0.4s ease;
+  box-shadow: var(--shadow-sm);
   opacity: 0;
-  transform: translateY(30px);
-  transition: opacity 0.6s ease, transform 0.6s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+  transform: translateY(12px);
+  transition: opacity var(--t) var(--t-ease), transform var(--t) var(--t-ease), box-shadow var(--t) var(--t-ease);
   transition-delay: var(--delay, 0ms);
 }
 
@@ -880,9 +848,8 @@
 }
 
 .about-card:hover {
-  border-color: var(--accent-1);
-  box-shadow: 0 8px 40px var(--glow-accent);
-  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
 }
 
 .card-icon {
@@ -911,23 +878,22 @@
 
 .project-card {
   position: relative;
-  border-radius: 16px;
+  border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  transition: all 0.3s ease;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--t) var(--t-ease);
 }
 
 .project-card:hover {
-  border-color: var(--accent-2);
-  box-shadow: 0 8px 40px var(--glow-cyan);
-  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
 }
 
 .project-card-bg {
   height: 140px;
-  background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
-  opacity: 0.08;
+  background: var(--accent-1-soft);
 }
 
 .project-card-content {
@@ -996,12 +962,12 @@
 }
 
 .meta-status.active {
-  background: var(--glow-cyan);
+  background: var(--accent-2-soft);
   color: var(--accent-2);
 }
 
 .meta-status.pending {
-  background: rgba(92, 92, 120, 0.1);
+  background: var(--neutral-soft);
   color: var(--text-muted);
 }
 
@@ -1021,15 +987,15 @@
   gap: 16px;
   width: 100%;
   padding: 20px 24px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  transition: all 0.3s ease;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--t) var(--t-ease);
 }
 
 .contact-item:hover {
-  border-color: var(--accent-1);
-  background: var(--accent-1-soft);
+  box-shadow: var(--shadow-md);
   transform: translateY(-2px);
 }
 
@@ -1189,12 +1155,12 @@
 }
 .modal-sheet {
   background: var(--bg-card);
-  border-radius: 16px;
+  border-radius: var(--radius-md);
   padding: 24px 28px 28px;
   max-width: 400px;
   width: 90%;
   animation: scaleIn 0.2s ease;
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-md);
 }
 .modal-sheet h3 {
   margin: 0 0 8px;
@@ -1249,6 +1215,31 @@
   cursor: not-allowed;
 }
 
+/* ---------- 弹窗内表单（图床等 Modal 输入共用） ---------- */
+.modal-hint {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.modal-input {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color var(--t-fast) var(--t-ease);
+}
+.modal-input::placeholder {
+  color: var(--text-muted);
+}
+.modal-input:focus {
+  border-color: var(--accent-1);
+}
+
 @keyframes scaleIn {
   from { transform: scale(0.9); opacity: 0; }
   to   { transform: scale(1); opacity: 1; }
@@ -1284,15 +1275,15 @@
   width: 100%;
   padding: 16px 20px;
   border: 1px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
   text-decoration: none;
-  transition: all 0.3s ease;
+  transition: all var(--t) var(--t-ease);
 }
 
 .friend-link-card:hover {
-  border-color: var(--accent-1);
-  box-shadow: 0 6px 24px var(--glow-accent);
+  box-shadow: var(--shadow-md);
   transform: translateY(-2px);
 }
 

@@ -31,7 +31,7 @@
 
 .project-title {
   font-size: 36px;
-  font-weight: 800;
+  font-weight: 600;
   letter-spacing: -0.03em;
   margin-bottom: 8px;
 }
@@ -57,13 +57,13 @@
   overflow: hidden;
   text-decoration: none;
   color: inherit;
-  transition: all 0.3s ease;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--t) var(--t-ease);
 }
 
 .project-page .project-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
-  border-color: var(--accent-1);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 .project-cover {
@@ -80,9 +80,9 @@
   align-items: center;
   justify-content: center;
   font-size: 56px;
-  font-weight: 800;
+  font-weight: 600;
   color: var(--white);
-  background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+  background: var(--accent-1);
 }
 
 .project-card-body {
@@ -212,7 +212,7 @@
 }
 
 .project-blog-item:hover {
-  background: var(--bg-card);
+  background: var(--neutral-soft);
   border-color: var(--accent-1);
 }
 
@@ -709,7 +709,7 @@
 }
 
 .project-blog-row:hover {
-  background: var(--accent-1-soft);
+  background: var(--neutral-soft);
 }
 
 .project-blog-row label {
@@ -781,17 +781,23 @@
   display: inline-block;
   padding: 8px 20px;
   border-radius: 8px;
-  background: linear-gradient(135deg, var(--accent-1), var(--accent-1-light));
+  background: var(--accent-1);
   color: var(--white);
   font-size: 13px;
   font-weight: 600;
   text-decoration: none;
-  transition: all 0.2s;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--t-fast) var(--t-ease);
 }
 
 .project-link-btn:hover {
-  opacity: 0.9;
-  transform: translateY(-2px);
+  background: var(--accent-1-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.project-link-btn:active {
+  transform: translateY(0) scale(0.98);
 }
 
 .project-link-actions {
@@ -914,15 +920,15 @@
 }
 
 .project-follow-btn.followed {
-  background: linear-gradient(135deg, var(--accent-1), var(--accent-1-light));
+  background: var(--accent-1);
   border-color: transparent;
   color: var(--white);
 }
 
 /* 已关注悬停：颜色加深（覆盖默认 hover 的浅色） */
 .project-follow-btn.followed:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--accent-1-hover), var(--accent-1));
-  box-shadow: 0 4px 14px var(--glow-accent-strong);
+  background: var(--accent-1-hover);
+  box-shadow: var(--shadow-md);
 }
 
 .project-follow-btn:disabled {

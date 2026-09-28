@@ -50,7 +50,7 @@
 
 .blog-title {
   font-size: 36px;
-  font-weight: 800;
+  font-weight: 600;
   letter-spacing: -0.03em;
   margin-bottom: 8px;
 }
@@ -99,16 +99,16 @@
   flex-direction: column;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: 16px;
+  border-radius: var(--radius-md);
   padding: 24px;
-  transition: all 0.3s ease;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
   position: relative;
 }
 
 .blog-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
-  border-color: var(--accent-1);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
   z-index: 5; /* hover 卡片浮起，避免下拉菜单被相邻卡片遮挡 */
 }
 
@@ -782,7 +782,7 @@
 .category-btn .arrow-down {
   font-size: 10px;
   margin-left: 4px;
-  transition: transform 0.25s ease;
+  transition: transform 0.2s ease;
 }
 .nav-dropdown:hover .category-btn .arrow-down {
   transform: rotate(180deg);
@@ -967,11 +967,13 @@
   border: 1px solid var(--border-color);
   border-radius: 12px;
   position: relative;
-  transition: background 0.2s;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s;
 }
 
 .comment-item:hover {
-  background: var(--bg-card);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 .comment-avatar {
@@ -1095,13 +1097,14 @@
   border: 1px solid var(--border-color);
   border-radius: 12px;
   background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
   text-decoration: none;
   transition: all 0.2s;
 }
 
 .blog-project-link:hover {
-  border-color: var(--accent-1);
-  box-shadow: 0 4px 16px var(--accent-1-soft);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 .blog-project-label {
@@ -1444,7 +1447,7 @@
 }
 
 .blog-card-featured-btn.active {
-  background: rgba(245, 179, 1, 0.15);
+  background: #f5b30126;
   border-color: #f5b301;
   color: #f5b301;
 }
@@ -1462,7 +1465,7 @@
   padding: 14px 16px;
   border-bottom: 1px solid var(--border-color);
   transition: background 0.2s;
-  animation: list-item-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: list-item-in 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
   position: relative;
 }
 
@@ -1478,7 +1481,7 @@
 }
 
 .blog-list-item:hover {
-  background: var(--bg-card);
+  background: var(--neutral-soft);
   z-index: 5; /* hover 行浮起，避免下拉菜单被相邻行遮挡 */
 }
 

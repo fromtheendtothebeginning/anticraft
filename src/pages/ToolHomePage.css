@@ -23,10 +23,7 @@
   font-size: 26px;
   font-weight: 700;
   margin: 0 0 8px;
-  background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--text-primary);
 }
 
 .tool-subtitle {
@@ -51,13 +48,13 @@
   border: 1px solid var(--border-color);
   text-decoration: none;
   color: inherit;
-  transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .tool-card-link:hover {
-  border-color: var(--accent-1);
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px var(--accent-1-soft);
+  box-shadow: var(--shadow-md);
 }
 
 .tool-card-icon {
