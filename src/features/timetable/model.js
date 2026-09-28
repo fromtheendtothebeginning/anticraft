@@ -243,14 +243,15 @@ function splitWeekRuns(weeks) {
   })
 }
 
-// jwxt.weeks = { [周号]: [{name, place, teachers, day, slotStart, slotEnd}] } → 课程条目数组
+// jwxt.weeks = { [周号]: [{name, place, teachers, code, clazz, day, slotStart, slotEnd}] } → 课程条目数组
 export function deriveImportedCourses(jwxt) {
   const weeks = (jwxt && jwxt.weeks) || {}
   const groups = new Map()
   for (const zsStr of Object.keys(weeks)) {
     const zs = parseInt(zsStr, 10)
     for (const o of weeks[zsStr] || []) {
-      const key = `${o.name}|${o.place}|${o.teachers}|${o.day}|${o.slotStart}|${o.slotEnd}`
+      // code/clazz 放键尾：同节课不同教学班不误合并；旧数据无这两字段时键一致
+      const key = `${o.name}|${o.place}|${o.teachers}|${o.day}|${o.slotStart}|${o.slotEnd}|${o.code || ''}|${o.clazz || ''}`
       if (!groups.has(key)) groups.set(key, [])
       groups.get(key).push(zs)
     }
@@ -258,13 +259,14 @@ export function deriveImportedCourses(jwxt) {
   const out = []
   let n = 0
   for (const [key, zsList] of groups) {
-    const [name, place, teachers, day, slotStart, slotEnd] = key.split('|')
+    const [name, place, teachers, day, slotStart, slotEnd, code, clazz] = key.split('|')
     const zsListU = [...new Set(zsList)].sort((a, b) => a - b)
     for (const seg of splitWeekRuns(zsListU)) {
       n += 1
       out.push({
         id: `jw-${n}`,
         name, place, teachers,
+        code, clazz,
         day: Number(day), slotStart: Number(slotStart), slotEnd: Number(slotEnd),
         weekType: seg.type, weekStart: seg.start, weekEnd: seg.end,
         imported: true,

@@ -491,7 +491,7 @@ export default function TimetablePage() {
       <CourseDetailModal
         open={!!detail}
         course={detail}
-        sessions={detail ? tt.courses.filter(c => c.name === detail.name) : []}
+        sessions={detail ? displayTt.courses.filter(c => c.name === detail.name) : []}
         onEdit={(course) => { setDetail(null); setEditing(course); setEditorOpen(true) }}
         onDelete={(c) => setDeleteTarget({ ...c, kind: 'course' })}
         onClose={() => setDetail(null)}

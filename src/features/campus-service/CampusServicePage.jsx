@@ -1251,31 +1251,29 @@ export default function CampusServicePage() {
     }
   }
 
-  // ── 渲染：校园卡动态码 ──
+  // ── 渲染：校园卡动态码（二维码居中在上，余额/倒计时/刷新在码下方） ──
   const renderEcard = () => {
     if (!ecardData) return null
     return (
       <div className="cs-panel cs-ecard-panel">
-        <div className="cs-ecard-head">
-          <div className="cs-ecard-title">
-            <span className="cs-badge cs-badge-ok">{t('campusService.query.ecard')}</span>
-            <span className="cs-ecard-balance">
-              {t('campusService.ecard.balance')}
-              <b>{ecardData.card_balance != null ? `¥${Number(ecardData.card_balance).toFixed(2)}` : '—'}</b>
-            </span>
-            {ecardData.refresh > 0 && (
-              <span className="cs-ecard-countdown">{t('campusService.ecard.countdown', { n: ecardCount })}</span>
-            )}
-          </div>
-          <button className="btn btn-secondary" onClick={() => doQuery('ecard')} disabled={!!qBusy}>
-            {qBusy === 'ecard' ? t('campusService.ecard.refreshing') : t('campusService.ecard.refresh')}
-          </button>
-        </div>
+        <span className="cs-badge cs-badge-ok">{t('campusService.query.ecard')}</span>
         {ecardData.image ? (
           <img className="cs-ecard-img" src={`data:${ecardData.type || 'image/png'};base64,${ecardData.image}`} alt="dynamic-code" />
         ) : ecardData.code ? (
           <p className="cs-ecard-code">{ecardData.code}</p>
         ) : null}
+        <div className="cs-ecard-foot">
+          <span className="cs-ecard-balance">
+            {t('campusService.ecard.balance')}
+            <b>{ecardData.card_balance != null ? `¥${Number(ecardData.card_balance).toFixed(2)}` : '—'}</b>
+          </span>
+          {ecardData.refresh > 0 && (
+            <span className="cs-ecard-countdown">{t('campusService.ecard.countdown', { n: ecardCount })}</span>
+          )}
+          <button className="btn btn-secondary" onClick={() => doQuery('ecard')} disabled={!!qBusy}>
+            {qBusy === 'ecard' ? t('campusService.ecard.refreshing') : t('campusService.ecard.refresh')}
+          </button>
+        </div>
         <p className="cs-ecard-tip">{t('campusService.ecard.tip')}</p>
       </div>
     )
@@ -1696,8 +1694,13 @@ export default function CampusServicePage() {
       <div className="tool-main">
         <header className="tool-header">
           <Link to="/tools" className="tool-back">{t('campusService.backToTools')}</Link>
-          <h1 className="tool-title">{t('campusService.title')}</h1>
-          <p className="tool-subtitle">{t('campusService.subtitle')}</p>
+          {/* 二级页有自己的标题，不再重复展示「校园服务」与介绍 */}
+          {!isSubPage && (
+            <>
+              <h1 className="tool-title">{t('campusService.title')}</h1>
+              <p className="tool-subtitle">{t('campusService.subtitle')}</p>
+            </>
+          )}
         </header>
 
         {!token && (

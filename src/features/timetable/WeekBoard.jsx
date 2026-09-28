@@ -92,6 +92,7 @@ export default function WeekBoard({ timetable, week, today, now, showTimes, onPi
               style={{ gridColumn: di + 2, gridRow: `${subRow(c.slotStart * SUBS_PER_SLOT)} / span ${span}` }}
               onClick={() => onPick(c)}
             >
+              <span className="tt-course-time">{SLOT_TIMES[c.slotStart][0]}</span>
               <span className="tt-course-name">{c.name}</span>
               {c.place && <span className="tt-course-place">{placeZh}</span>}
               {c.place && placeCode && <span className="tt-course-code">{placeCode}</span>}

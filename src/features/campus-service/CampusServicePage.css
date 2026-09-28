@@ -457,7 +457,7 @@
   background: var(--bg-elevated);
 }
 
-/* ── 校园卡动态码 ── */
+/* ── 校园卡动态码：徽标/二维码/信息行纵向居中，余额与刷新在二维码下方 ── */
 .cs-ecard-panel {
   display: flex;
   flex-direction: column;
@@ -465,19 +465,11 @@
   gap: 12px;
 }
 
-.cs-ecard-head {
-  width: 100%;
+.cs-ecard-foot {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 12px;
-  flex-wrap: wrap;
-}
-
-.cs-ecard-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
   flex-wrap: wrap;
 }
 

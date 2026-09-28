@@ -550,6 +550,9 @@ class DektClient:
                 "name": (it.get("kcmc") or "").strip(),
                 "place": (it.get("cdmc") or "").strip(),
                 "teachers": (it.get("xm") or "").strip(),
+                # 课程代码 / 教学班：正方 kbList 标准字段为 kcb_id / jxbmc，多备一个候选兜底
+                "code": (it.get("kcb_id") or it.get("kch_id") or it.get("kch") or "").strip(),
+                "clazz": (it.get("jxbmc") or it.get("jxb_id") or "").strip(),
                 "day": day,
                 "slotStart": slot_start,
                 "slotEnd": slot_end,

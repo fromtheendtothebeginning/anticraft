@@ -12,6 +12,7 @@ import {
   SLOT_TIMES, DEFAULT_WEEK_COUNT, WEEKDAY_LABELS, WEEKDAY_SHORT,
   emptyDraft, courseHue, weekRangeLabel, minutesOf, expandDateRange,
 } from './model'
+import TimePicker from './TimePicker'
 
 const WEEK_TYPE_OPTIONS = [
   { value: 'all', label: t('timetable.weekTypeAll') },
@@ -269,6 +270,11 @@ export function CourseDetailModal({ open, course, sessions, onEdit, onDelete, on
                 {c.place && c.teachers ? ' · ' : ''}
                 {c.teachers}
               </span>
+              {(c.code || c.clazz) && (
+                <span className="tt-detail-extras">
+                  {[c.code && `${t('timetable.courseCode')} ${c.code}`, c.clazz && `${t('timetable.courseClass')} ${c.clazz}`].filter(Boolean).join(' · ')}
+                </span>
+              )}
               <span className="tt-detail-weeks">{weekRangeLabel(c, WEEK_TYPE_LABELS)}</span>
             </div>
           ))}
@@ -357,16 +363,14 @@ export function EventFormModal({ open, editing, onSave, onClose }) {
         <label className="tt-field">
           <span>{t('timetable.eventTime')}</span>
           <div className="tt-slot-inputs">
-            <input
-              type="time"
+            <TimePicker
               value={draft.start}
-              onChange={e => setDraft({ ...draft, start: e.target.value })}
+              onChange={v => setDraft({ ...draft, start: v })}
             />
             <span className="tt-slot-sep">{t('timetable.to')}</span>
-            <input
-              type="time"
+            <TimePicker
               value={draft.end}
-              onChange={e => setDraft({ ...draft, end: e.target.value })}
+              onChange={v => setDraft({ ...draft, end: v })}
             />
           </div>
         </label>
