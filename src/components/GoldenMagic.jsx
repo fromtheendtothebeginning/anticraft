@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import { applyGolden } from '../utils/themeTransition'
 import { UiIcon } from './Icons'
 import { t } from '../i18n'
+import { apiFetch } from '../utils/api'
 
 const GOLDEN_CHANCE = 0.05 // 部署服务器 5%（本地开发可改 0.5）
 const GOLDEN_UNTIL_KEY = 'lc_golden_until'
@@ -47,16 +48,19 @@ function GoldenMagic() {
       return
     }
 
-    const eligible = (() => {
-      try {
-        const c = JSON.parse(localStorage.getItem('lc_me_cache') || 'null')
-        return !!(c && c.bound && c.boost_mode && c.score > 0)
-      } catch { return false }
-    })()
-    if (!eligible) return
-    if (Math.random() < GOLDEN_CHANCE) {
-      setPhase('ask')
-    }
+    // 资格判断：读库内绑定态（quick 只读库毫秒级，替代旧 lc_me_cache localStorage 缓存，不跨账号串数据）
+    if (!localStorage.getItem('token')) return
+    let alive = true
+    apiFetch('/api/leetcode/me?quick=1')
+      .then(r => r.ok ? r.json() : null)
+      .then(c => {
+        if (!alive || !c || !c.bound || !c.boost_mode || !(c.score > 0)) return
+        if (Math.random() < GOLDEN_CHANCE) {
+          setPhase('ask')
+        }
+      })
+      .catch(() => {})
+    return () => { alive = false }
   }, [])
 
   // 计时器驱动

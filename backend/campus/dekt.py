@@ -13,6 +13,18 @@ import requests
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/120.0 Safari/537.36")
 
+# 32 位十六进制 GUID：部分课程的 kcb_id 是内部 ID（如毛概），不能当课程代码展示
+_GUID_RE = re.compile(r"^[0-9A-Fa-f]{32}$")
+
+
+def readable_course_code(*candidates):
+    """课程代码取人类可读的课程号：跳过 GUID 形态的 kcb_id，全部无效时返回空串"""
+    for v in candidates:
+        v = (v or "").strip()
+        if v and not _GUID_RE.fullmatch(v):
+            return v
+    return ""
+
 
 class DektError(Exception):
     pass
@@ -551,7 +563,7 @@ class DektClient:
                 "place": (it.get("cdmc") or "").strip(),
                 "teachers": (it.get("xm") or "").strip(),
                 # 课程代码 / 教学班：正方 kbList 标准字段为 kcb_id / jxbmc，多备一个候选兜底
-                "code": (it.get("kcb_id") or it.get("kch_id") or it.get("kch") or "").strip(),
+                "code": readable_course_code(it.get("kcb_id"), it.get("kch_id"), it.get("kch")),
                 "clazz": (it.get("jxbmc") or it.get("jxb_id") or "").strip(),
                 "day": day,
                 "slotStart": slot_start,

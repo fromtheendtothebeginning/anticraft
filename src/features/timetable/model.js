@@ -244,30 +244,40 @@ function splitWeekRuns(weeks) {
 }
 
 // jwxt.weeks = { [周号]: [{name, place, teachers, code, clazz, day, slotStart, slotEnd}] } → 课程条目数组
+const GUID_RE = /^[0-9A-Fa-f]{32}$/
+
 export function deriveImportedCourses(jwxt) {
   const weeks = (jwxt && jwxt.weeks) || {}
   const groups = new Map()
   for (const zsStr of Object.keys(weeks)) {
     const zs = parseInt(zsStr, 10)
     for (const o of weeks[zsStr] || []) {
-      // code/clazz 放键尾：同节课不同教学班不误合并；旧数据无这两字段时键一致
-      const key = `${o.name}|${o.place}|${o.teachers}|${o.day}|${o.slotStart}|${o.slotEnd}|${o.code || ''}|${o.clazz || ''}`
-      if (!groups.has(key)) groups.set(key, [])
-      groups.get(key).push(zs)
+      // code/clazz 不进合并键：后续导入只刷新当前停留周，新旧数据混存会把同一场次拆成多段（代码行显示不齐的根因）
+      // 作为附属元数据随组合并，取首个有效值（跳过 32 位 GUID 形态的旧脏数据）
+      const key = `${o.name}|${o.place}|${o.teachers}|${o.day}|${o.slotStart}|${o.slotEnd}`
+      if (!groups.has(key)) {
+        groups.set(key, { zsList: [], code: '', clazz: '', name: o.name, place: o.place,
+          teachers: o.teachers, day: o.day, slotStart: o.slotStart, slotEnd: o.slotEnd })
+      }
+      const g = groups.get(key)
+      g.zsList.push(zs)
+      const code = (o.code || '').trim()
+      const clazz = (o.clazz || '').trim()
+      if (!g.code && code && !GUID_RE.test(code)) g.code = code
+      if (!g.clazz && clazz) g.clazz = clazz
     }
   }
   const out = []
   let n = 0
-  for (const [key, zsList] of groups) {
-    const [name, place, teachers, day, slotStart, slotEnd, code, clazz] = key.split('|')
-    const zsListU = [...new Set(zsList)].sort((a, b) => a - b)
+  for (const g of groups.values()) {
+    const zsListU = [...new Set(g.zsList)].sort((a, b) => a - b)
     for (const seg of splitWeekRuns(zsListU)) {
       n += 1
       out.push({
         id: `jw-${n}`,
-        name, place, teachers,
-        code, clazz,
-        day: Number(day), slotStart: Number(slotStart), slotEnd: Number(slotEnd),
+        name: g.name, place: g.place, teachers: g.teachers,
+        code: g.code, clazz: g.clazz,
+        day: Number(g.day), slotStart: Number(g.slotStart), slotEnd: Number(g.slotEnd),
         weekType: seg.type, weekStart: seg.start, weekEnd: seg.end,
         imported: true,
       })

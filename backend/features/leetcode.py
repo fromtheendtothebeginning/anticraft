@@ -98,13 +98,13 @@ def _leetcode_me_payload(binding) -> dict:
 
 
 @router.get("/api/leetcode/me", response_model=LeetcodeMeResponse, tags=["LeetCode"])
-def leetcode_me(current_user: User = Depends(get_current_user_obj), db: Session = Depends(get_db)):
-    """获取当前用户的 LeetCode 绑定与刷题增量（实时同步）"""
+def leetcode_me(quick: bool = False, current_user: User = Depends(get_current_user_obj), db: Session = Depends(get_db)):
+    """获取当前用户的 LeetCode 绑定与刷题增量（实时同步；quick=true 只读库不实时抓取，毫秒级返回）"""
     user_id = current_user.id
     binding = db.query(LeetcodeBinding).filter(LeetcodeBinding.user_id == user_id).first()
     if not binding:
         return LeetcodeMeResponse(bound=False)
-    if not binding.debug_mode:
+    if not binding.debug_mode and not quick:
         try:
             prog = fetch_leetcode_progress(binding.leetcode_username)
             if prog is not None:

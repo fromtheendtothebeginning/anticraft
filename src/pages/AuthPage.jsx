@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { t } from '../i18n'
+import { UiIcon } from '../components/Icons'
 import './Auth.css'
 
 function AuthPage() {
@@ -149,7 +150,7 @@ function AuthPage() {
                 <div className="form-group">
                   <label className="form-label">{t('auth.form.usernameLabel')}</label>
                   <div className="form-input-wrap">
-                    <span className="form-input-icon">&#128100;</span>
+                    <span className="form-input-icon"><UiIcon name="user" size={16} /></span>
                     <input
                       type="text"
                       name="username"
@@ -166,7 +167,7 @@ function AuthPage() {
                 <div className="form-group">
                   <label className="form-label">{t('auth.form.passwordLabel')}</label>
                   <div className="form-input-wrap">
-                    <span className="form-input-icon">&#128274;</span>
+                    <span className="form-input-icon"><UiIcon name="lock" size={16} /></span>
                     <input
                       type={showPwd ? 'text' : 'password'}
                       name="password"
@@ -210,7 +211,7 @@ function AuthPage() {
                   <div className="form-group">
                     <label className="form-label">{t('auth.form.confirmLabel')}</label>
                     <div className="form-input-wrap">
-                      <span className="form-input-icon">&#128274;</span>
+                      <span className="form-input-icon"><UiIcon name="lock" size={16} /></span>
                       <input
                         type={showConfirm ? 'text' : 'password'}
                         name="confirm"
@@ -249,7 +250,7 @@ function AuthPage() {
                   <div className="form-group">
                     <label className="form-label">{t('auth.form.inviteLabel')}</label>
                     <div className="form-input-wrap">
-                      <span className="form-input-icon">&#127873;</span>
+                      <span className="form-input-icon"><UiIcon name="gift" size={16} /></span>
                       <input
                         type="text"
                         name="inviteCode"

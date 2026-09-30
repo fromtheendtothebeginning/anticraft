@@ -60,7 +60,7 @@
   padding-top: 24px;
 }
 
-.auth-brand-header {
+.auth-brand-logo {
   display: inline-flex;
   align-items: center;
   gap: 16px;
@@ -69,7 +69,7 @@
   transition: opacity var(--t-fast) var(--t-ease);
 }
 
-.auth-brand-header:hover {
+.auth-brand-logo:hover {
   opacity: 0.85;
 }
 
@@ -83,7 +83,7 @@
   flex-shrink: 0;
 }
 
-.auth-brand-header:hover .brand-logo-img {
+.auth-brand-logo:hover .brand-logo-img {
   transform: translateY(-1px);
   box-shadow: var(--shadow-md);
 }
@@ -245,9 +245,12 @@
 .form-input-icon {
   position: absolute;
   left: 14px;
-  font-size: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
   pointer-events: none;
-  opacity: 0.6;
   z-index: 1;
 }
 

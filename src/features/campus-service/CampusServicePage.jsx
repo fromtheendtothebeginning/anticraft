@@ -5,6 +5,7 @@ import Modal from '../../components/Modal'
 import CategoryDropdown from '../../components/CategoryDropdown'
 import { t } from '../../i18n'
 import { apiFetch } from '../../utils/api'
+import { getUserData, putUserData } from '../../utils/userData'
 import '../../pages/ToolParsePage.css'
 import './CampusServicePage.css'
 
@@ -310,31 +311,21 @@ function fmtDt(s) {
   return String(s).slice(5, 16)
 }
 
-// ── 上次查询结果缓存（localStorage，按用户隔离） ──
-function currentUserId() {
-  try {
-    return JSON.parse(localStorage.getItem('user') || '{}').id
-  } catch {
-    return null
-  }
-}
+// ── 上次查询结果缓存（云端 /api/user-data，按账号隔离，换设备也在） ──
+const CACHE_KEYS = { score: 'campus_cache_score', grades: 'campus_cache_grades', activities: 'campus_cache_activities' }
 
-function _cacheKey(feature, userId) {
-  return `campus_cache_${feature}_${userId || 'anon'}`
-}
-
-function loadCache(feature, userId) {
+// 一次性清理旧版按 user.id 拼 key 的 localStorage 缓存（数据已迁云端）
+let _legacySwept = false
+function sweepLegacyCache() {
+  if (_legacySwept) return
+  _legacySwept = true
   try {
-    const raw = localStorage.getItem(_cacheKey(feature, userId))
-    return raw ? JSON.parse(raw) : null
-  } catch {
-    return null
-  }
-}
-
-function saveCache(feature, userId, data) {
-  try {
-    localStorage.setItem(_cacheKey(feature, userId), JSON.stringify(data))
+    const stale = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)
+      if (k && k.startsWith('campus_cache_')) stale.push(k)
+    }
+    stale.forEach(k => localStorage.removeItem(k))
   } catch { /* 忽略 */ }
 }
 
@@ -643,25 +634,26 @@ export default function CampusServicePage() {
     } catch { /* 忽略 */ }
   }, [token])
 
-  // ── 子页面进入时先用上次查询结果渲染（缓存带用户 id，互不串数据） ──
+  // ── 子页面进入时先取上次查询结果渲染（云端按账号隔离，换设备也在） ──
   useEffect(() => {
     if (!token || !isSubPage || cacheFeature === feature) return
-    const userId = currentUserId()
-    if (feature === 'score') {
-      const c = loadCache('score', userId)
-      if (c) setScoreData(c)
-    } else if (feature === 'grades') {
-      const c = loadCache('grades', userId)
-      if (c) {
+    setCacheFeature(feature)
+    const key = CACHE_KEYS[feature]
+    if (!key) return // 校园卡动态码 / 电费不做缓存
+    sweepLegacyCache()
+    let alive = true
+    getUserData(key).then(c => {
+      if (!alive || !c) return
+      if (feature === 'score') {
+        setScoreData(c)
+      } else if (feature === 'grades') {
         setGradeData(c)
         if (Array.isArray(c.terms) && c.terms.length > 0) setGradeTerms(c.terms)
+      } else if (feature === 'activities') {
+        setActData(c)
       }
-    } else if (feature === 'activities') {
-      const c = loadCache('activities', userId)
-      if (c) setActData(c)
-    }
-    // 校园卡动态码 / 电费不做缓存
-    setCacheFeature(feature)
+    })
+    return () => { alive = false }
   }, [token, isSubPage, feature, cacheFeature])
 
   // 电费子页面进入时拉取历史曲线
@@ -728,14 +720,13 @@ export default function CampusServicePage() {
   // ── 结果写入 ──
   const applyResult = (kind, data, autoCaptcha) => {
     if (autoCaptcha) setAutoCaptchaUsed(true)
-    const userId = currentUserId()
     if (kind === 'score') {
       const scoreResult = (data && data.score) || data || null
       setScoreData(scoreResult)
-      if (scoreResult) saveCache('score', userId, scoreResult)
+      if (scoreResult) putUserData(CACHE_KEYS.score, scoreResult)
     } else if (kind === 'grades') {
       setGradeData(data || null)
-      if (data) saveCache('grades', userId, data)
+      if (data) putUserData(CACHE_KEYS.grades, data)
       if (data && Array.isArray(data.terms) && data.terms.length > 0) {
         setGradeTerms(data.terms)
         setGradeTerm('')
@@ -744,7 +735,7 @@ export default function CampusServicePage() {
       setEcardData(data || null)
     } else if (kind === 'activities') {
       setActData(data || null)
-      if (data) saveCache('activities', userId, data)
+      if (data) putUserData(CACHE_KEYS.activities, data)
     } else if (kind === 'electricity') {
       setElecData(data || null)
     }

@@ -54,15 +54,12 @@ function LeetCodePage() {
   const [boostExitConfirm, setBoostExitConfirm] = useState(false)
   const [boostExitTarget, setBoostExitTarget] = useState(null)
 
-const CACHE_KEY = 'lc_me_cache'
-
-const loadLc = () => {
-  apiFetch('/api/leetcode/me')
+const loadLc = (quick) => {
+  apiFetch(`/api/leetcode/me${quick ? '?quick=1' : ''}`)
     .then(r => r.ok ? r.json() : null)
     .then(d => {
       if (!d) return
       setMe(d)
-      localStorage.setItem(CACHE_KEY, JSON.stringify(d))
     })
     .catch(() => {})
 }
@@ -80,11 +77,8 @@ const load = () => {
   useEffect(() => {
     if (!loggedIn) return
     // 榜单首拉由下方轮询 effect 的立即 poll() 承担，避免挂载时重复请求两次
-    // 先渲染本地缓存的绑定状态，避免切换页面时闪出绑定表单（实时同步 LeetCode 需 1-3s）
-    try {
-      const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null')
-      if (cached && cached.bound) setMe(cached)
-    } catch {}
+    // 先渲染库内绑定状态（quick 只读库，毫秒级），避免切换页面时闪出绑定表单（实时同步 LeetCode 需 1-3s）
+    loadLc(true)
     loadLc()
   }, [])
 

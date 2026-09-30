@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { t } from '../i18n'
+import { UiIcon } from '../components/Icons'
 import './Auth.css'
 
 function ResetPasswordPage() {
@@ -145,7 +146,7 @@ function ResetPasswordPage() {
                 <div className="form-group">
                   <label className="form-label">{t('reset.step1.usernameLabel')}</label>
                   <div className="form-input-wrap">
-                    <span className="form-input-icon">&#128100;</span>
+                    <span className="form-input-icon"><UiIcon name="user" size={16} /></span>
                     <input
                       type="text"
                       name="username"
@@ -183,7 +184,7 @@ function ResetPasswordPage() {
                 <div className="form-group">
                   <label className="form-label">{t('reset.step2.newPwdLabel')}</label>
                   <div className="form-input-wrap">
-                    <span className="form-input-icon">&#128274;</span>
+                    <span className="form-input-icon"><UiIcon name="lock" size={16} /></span>
                     <input
                       type={showNewPwd ? 'text' : 'password'}
                       name="newPassword"
@@ -221,7 +222,7 @@ function ResetPasswordPage() {
                 <div className="form-group">
                   <label className="form-label">{t('reset.step2.confirmLabel')}</label>
                   <div className="form-input-wrap">
-                    <span className="form-input-icon">&#128274;</span>
+                    <span className="form-input-icon"><UiIcon name="lock" size={16} /></span>
                     <input
                       type={showConfirm ? 'text' : 'password'}
                       name="confirm"
@@ -258,7 +259,7 @@ function ResetPasswordPage() {
                 <div className="form-group">
                   <label className="form-label">{t('reset.step2.inviteLabel')}</label>
                   <div className="form-input-wrap">
-                    <span className="form-input-icon">&#127873;</span>
+                    <span className="form-input-icon"><UiIcon name="gift" size={16} /></span>
                     <input
                       type="text"
                       name="inviteCode"
