@@ -12,8 +12,9 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Uplo
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from deps import get_current_user_obj
+from deps import _client_ip, get_current_user_obj
 from models import User
+from ratelimit import SlidingWindow
 
 router = APIRouter()
 
@@ -21,6 +22,7 @@ PRINT_BASE = os.environ.get("PRINT_BASE", "https://print.anticraft.top").rstrip(
 _TIMEOUT = (10, 120)   # (连接, 读)：上传与 Office 转 PDF 可能较慢
 MAX_FILES = 5
 MAX_FILE_BYTES = 10 * 1024 * 1024
+_login_ip = SlidingWindow(5, 60)  # 登录转发限流：防止本接口被当作对 AntiPrint 的爆破中继
 
 
 class PrintLoginBody(BaseModel):
@@ -57,11 +59,13 @@ def _token(request: Request) -> str:
 
 
 @router.post("/api/print/login", tags=["打印服务"])
-def print_login(body: PrintLoginBody, current_user: User = Depends(get_current_user_obj)):
+def print_login(body: PrintLoginBody, request: Request, current_user: User = Depends(get_current_user_obj)):
     """用 anticraft 账号密码登录 AntiPrint（首次自动建号），令牌交前端保存。
 
     必须已是站内登录用户：否则这里会成为一个匿名借用本服务器 IP 转发凭据校验的通道。
     """
+    if not _login_ip.allow(_client_ip(request)):
+        raise HTTPException(status_code=429, detail="请求过于频繁，请稍后再试")
     username = (body.username or "").strip()
     if not username or not body.password:
         raise HTTPException(status_code=400, detail="请填写用户名和密码")

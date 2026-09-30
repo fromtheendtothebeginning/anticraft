@@ -46,6 +46,14 @@ async def _log_requests(request: Request, call_next):
     return response
 
 
+@app.middleware("http")
+async def _security_headers(request: Request, call_next):
+    response = await call_next(request)
+    # 禁止浏览器对响应做 MIME 嗅探（文件类接口一律按显式 Content-Type 处理）
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    return response
+
+
 @app.on_event("startup")
 def on_startup():
     """首次启动自动建表 + 迁移新字段 + 定时任务"""

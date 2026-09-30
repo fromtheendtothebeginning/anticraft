@@ -10,7 +10,10 @@ import base64
 import hashlib
 import hmac as _hmac
 import secrets
+import socket
 import time
+import ipaddress
+import urllib.parse
 import urllib.request
 import urllib.error
 
@@ -451,6 +454,55 @@ def _endpoint_url(api: str, base: str, provider_id: str):
     return base + "/chat/completions"
 
 
+# ============================================
+# SSRF 防护：外发 URL 校验 + 逐跳安全重定向
+# ============================================
+
+class UnsafeURLError(Exception):
+    """外发请求目标未通过公网校验（含 302 等重定向跳向内网）"""
+
+
+def assert_public_http_url(url: str) -> str:
+    """校验 URL 为公网 http(s)：域名先解析，逐一检查解析出的 IP，
+    拦截内网/环回/链路本地/保留/组播地址。合法返回原 URL，非法抛 ValueError。
+    （校验与发起请求之间存在 DNS 重解析窗口，理论上可被 DNS rebinding 利用，
+    需要攻击者控制权威 DNS 并精确卡时序，风险可接受。）"""
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in ("http", "https") or not parsed.hostname:
+        raise ValueError("无效的资源地址")
+    try:
+        infos = socket.getaddrinfo(parsed.hostname, None)
+    except OSError:
+        raise ValueError("无法解析目标主机")
+    for info in infos:
+        ip = ipaddress.ip_address(info[4][0])
+        if ip.version == 6 and ip.ipv4_mapped:
+            ip = ip.ipv4_mapped  # ::ffff:10.0.0.1 形态按映射后的 IPv4 判定
+        if (ip.is_private or ip.is_loopback or ip.is_link_local
+                or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+            raise ValueError("不允许访问内网地址")
+    return url
+
+
+class _SafeRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """urlopen 默认跟随重定向且不复查目标：这里逐跳复检，堵「公网 URL 302 跳内网」"""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        try:
+            assert_public_http_url(newurl)
+        except ValueError as e:
+            raise UnsafeURLError(str(e))
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+_opener = urllib.request.build_opener(_SafeRedirectHandler())
+
+
+def safe_urlopen(req, timeout):
+    """urlopen 的安全等价物：每一跳重定向都重新做公网地址校验"""
+    return _opener.open(req, timeout=timeout)
+
+
 def test_chat(provider_id: str, api_key: str, model: str, base_url: str = None, timeout: int = 20):
     """向提供商发一条极小请求验证 Key/模型可用。返回 (ok: bool, latency_ms, error: str|None)"""
     p = get_provider(provider_id)
@@ -460,7 +512,7 @@ def test_chat(provider_id: str, api_key: str, model: str, base_url: str = None, 
     req = urllib.request.Request(url, data=payload, headers=_build_headers(api, api_key), method="POST")
     start = time.monotonic()
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with safe_urlopen(req, timeout=timeout) as resp:
             resp.read()
             return True, int((time.monotonic() - start) * 1000), None
     except urllib.error.HTTPError as e:
@@ -501,7 +553,7 @@ def list_models(provider_id: str, api_key: str, base_url: str = None, timeout: i
         url = base + "/models"
     req = urllib.request.Request(url, headers=_build_headers("openai", api_key))
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with safe_urlopen(req, timeout=timeout) as resp:
             data = json.loads(resp.read().decode())
         ids = [str(m.get("id")) for m in data.get("data", []) if isinstance(m, dict) and m.get("id")]
         ids = [i for i in ids if i]

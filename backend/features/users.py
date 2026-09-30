@@ -65,9 +65,10 @@ def reset_password(req: ResetPasswordRequest, request: Request, db: Session = De
 
     user = db.query(User).filter(User.username == req.username).first()
     if not user:
+        # 与「邀请码无效」同文案同状态码，避免借本接口区分用户名是否存在
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="用户不存在",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="邀请码无效或不属于该账号",
         )
 
     if not reset_lock.check(user.username):

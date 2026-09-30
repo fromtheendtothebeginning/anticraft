@@ -88,7 +88,7 @@ def _own_connected_session(user_id):
 def electricity_query(current_user: User = Depends(get_current_user_obj),
                       db: OrmSession = Depends(get_db)):
     """查询宿舍电费余额（直连；网络失败且本人 VPN 已连接时借道自己的隧道重试一次）"""
-    from campus.electricity import ElectricityClient
+    from campus.electricity import ElectricityClient, ElectricityError
 
     cred, dorm, real_name, pay_pwd = _cred_and_secrets(current_user, db)
     try:
@@ -96,13 +96,16 @@ def electricity_query(current_user: User = Depends(get_current_user_obj),
     except Exception as e:
         sess = _own_connected_session(current_user.id) if _is_network_error(e) else None
         if sess is None:
-            raise HTTPException(status_code=400, detail=f"电费查询失败：{e}")
+            # 业务异常(ElectricityError)原文给用户；其余（requests 等）用固定文案，防上游 URL/内网信息外泄
+            raise HTTPException(status_code=400,
+                                detail=str(e) if isinstance(e, ElectricityError) else "电费查询失败，请稍后重试")
         try:
             # 容器端口发布在后端主机上，走本机回环（sess.proxy_host 只是对外展示地址）
             result = ElectricityClient(proxy_host="127.0.0.1", socks_port=sess.socks_port).query(
                 cred.student_id, real_name, pay_pwd, dorm)
         except Exception as e2:
-            raise HTTPException(status_code=400, detail=f"电费查询失败：{e2}")
+            raise HTTPException(status_code=400,
+                                detail=str(e2) if isinstance(e2, ElectricityError) else "电费查询失败，请稍后重试")
 
     _save_record(db, current_user.id, dorm, result.get("balance"), result.get("remain"), result.get("raw"))
     return {
@@ -158,13 +161,14 @@ def electricity_recharge(req: RechargeRequest,
     if not (0 < req.amount <= 500):
         raise HTTPException(status_code=400, detail="金额须在 0.01 - 500 元之间")
 
-    from campus.electricity import ElectricityClient
+    from campus.electricity import ElectricityClient, ElectricityError
 
     cred, dorm, real_name, pay_pwd = _cred_and_secrets(current_user, db)
     try:
         result = ElectricityClient().recharge(cred.student_id, real_name, pay_pwd, dorm, req.amount)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"充值失败：{e}")
+        raise HTTPException(status_code=400,
+                            detail=str(e) if isinstance(e, ElectricityError) else "充值失败，请稍后重试")
     if not result.get("ok"):
         raise HTTPException(status_code=400, detail=result.get("message") or "充值失败")
 

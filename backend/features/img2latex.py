@@ -20,6 +20,7 @@ import aisettings
 from database import Base, get_db
 from deps import ai_vision_text, get_current_user_obj, _log
 from models import AiKey, AiSetting, User
+from ratelimit import SlidingWindow
 
 router = APIRouter()
 
@@ -542,9 +543,14 @@ def _run_xelatex(tmp: str, name: str) -> Optional[str]:
     return r.stderr.decode("utf-8", errors="replace")[-500:]
 
 
+_compile_user = SlidingWindow(10, 600)  # 每用户 10 分钟最多 10 次：XeLaTeX 很吃 CPU，防并发刷爆
+
+
 @router.post("/api/tools/img2latex/compile", tags=["工具"])
 def img2latex_compile(req: CompileRequest, current_user: User = Depends(get_current_user_obj), db: Session = Depends(get_db)):
     """LaTeX 代码 → PDF（XeLaTeX 编译两遍）。失败时依次尝试：AI 依错误日志修复 → 正则修复 Undefined → 重试（≤3 轮）"""
+    if not _compile_user.allow(str(current_user.id)):
+        raise HTTPException(status_code=429, detail="编译请求过于频繁，请稍后再试")
     code = (req.code or "").strip()
     if not code:
         raise HTTPException(status_code=400, detail="请先生成或粘贴 LaTeX 代码")

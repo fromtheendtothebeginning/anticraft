@@ -46,6 +46,7 @@ TOKEN_TTL_DAYS = 30            # 访问令牌有效期
 MAX_REDIRECT_URIS = 10         # 单应用最多登记的回调地址数
 
 token_ip = SlidingWindow(30, 60)  # 同一 IP 每分钟最多 30 次令牌交换（含失败尝试，防密钥爆破）
+revoke_ip = SlidingWindow(30, 60)  # 同一 IP 每分钟最多 30 次解绑请求（与令牌交换同档）
 
 
 # ============================================
@@ -365,8 +366,11 @@ class RevokeRequest(BaseModel):
 
 
 @router.post("/api/open/revoke", tags=["开放接口"])
-def open_revoke(req: RevokeRequest, db: Session = Depends(get_db)):
+def open_revoke(req: RevokeRequest, request: Request, db: Session = Depends(get_db)):
     """第三方主动解除绑定（用户在第三方侧解绑时调用），幂等"""
+    if not revoke_ip.allow(_client_ip(request)):
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                            detail="请求过于频繁，请稍后再试")
     app = (
         db.query(BindApp)
         .filter(BindApp.client_id == req.client_id)

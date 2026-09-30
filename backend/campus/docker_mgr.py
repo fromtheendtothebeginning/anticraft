@@ -41,9 +41,13 @@ class DockerManager:
     def create_container(self, sess):
         # bridge 模式 + 端口映射，EasyConnect 需要独立网络命名空间建 tun
         cli_opts = "-d %s -u %s -p %s" % (self.cfg.vpn_addr, sess.student_id, sess.password)
+        # 代理端口默认只绑本机回环（后端与容器同机，回环即可用）；仅当配置了
+        # CAMPUS_PUBLIC_HOST（代理分享功能，地址会展示给用户）才绑所有网卡。
+        # 容器代理本身无认证，公网暴露必须是显式配置的选择而非默认行为。
+        bind = "0.0.0.0" if self.cfg.public_host else "127.0.0.1"
         ports = {
-            "1080/tcp": ("0.0.0.0", str(sess.socks_port)),
-            "8888/tcp": ("0.0.0.0", str(sess.http_port)),
+            "1080/tcp": (bind, str(sess.socks_port)),
+            "8888/tcp": (bind, str(sess.http_port)),
         }
         env = {
             "EC_VER": self.cfg.ec_ver,

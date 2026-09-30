@@ -3,7 +3,6 @@
 import ipaddress
 import json
 import urllib.error
-import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from typing import Optional
@@ -20,17 +19,12 @@ from models import User, Notification
 
 
 def _assert_public_http_url(url: str) -> str:
-    """校验 URL 为公网 http(s) 且目标非内网/环回/链路本地地址，防 SSRF。合法返回原 URL。"""
-    parsed = urllib.parse.urlparse(url)
-    if parsed.scheme not in ("http", "https") or not parsed.hostname:
-        raise HTTPException(status_code=400, detail="无效的资源地址")
+    """校验 URL 为公网 http(s) 且目标非内网/环回/链路本地地址，防 SSRF。合法返回原 URL。
+    域名会先解析并逐一校验 IP（实现见 aisettings.assert_public_http_url）。"""
     try:
-        ip = ipaddress.ip_address(parsed.hostname)
-    except ValueError:
-        ip = None  # 域名：解析后无法在此拦截，配合超时兜底
-    if ip is not None and (ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved):
-        raise HTTPException(status_code=400, detail="不允许访问内网地址")
-    return url
+        return aisettings.assert_public_http_url(url)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 def _log(msg: str):
@@ -198,7 +192,7 @@ def ai_vision_text(provider_id, api_key, model, base_url, system, user_text, ima
 
     def _post(body):
         req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"), headers=headers, method="POST")
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with aisettings.safe_urlopen(req, timeout=timeout) as resp:
             return json.loads(resp.read().decode())
 
     try:
@@ -219,6 +213,8 @@ def ai_vision_text(provider_id, api_key, model, base_url, system, user_text, ima
                 if msg:
                     raise HTTPException(status_code=400, detail={"code": "ai_config", "message": msg})
                 raise HTTPException(status_code=502, detail=f"AI 提供商返回 HTTP {e.code}: {detail}")
+        except aisettings.UnsafeURLError:
+            raise HTTPException(status_code=400, detail="不允许访问内网地址")
     except HTTPException:
         raise
     except Exception as e:

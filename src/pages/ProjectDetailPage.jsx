@@ -5,7 +5,7 @@ import Modal from '../components/Modal'
 import ProjectCover from '../components/ProjectCover'
 import Reveal from '../components/Reveal'
 import CommentSection from '../components/CommentSection'
-import { renderMd } from '../utils/markdown'
+import { renderMd, sanitizeUrl } from '../utils/markdown'
 import { apiFetch } from '../utils/api'
 import { fmtDate, fmtDateLong } from '../utils/format'
 import { UiIcon } from '../components/Icons'
@@ -204,7 +204,7 @@ function ProjectDetailPage() {
 
           {(project.links && project.links.length > 0) && (
             <div className="project-actions project-link-actions">
-              {project.links.map((l, i) => (
+              {project.links.filter(l => sanitizeUrl(l.url)).map((l, i) => (
                 <a
                   key={i}
                   href={l.url}
@@ -217,7 +217,7 @@ function ProjectDetailPage() {
               ))}
             </div>
           )}
-          {(!(project.links && project.links.length > 0) && project.link_url) && (
+          {(!(project.links && project.links.length > 0) && sanitizeUrl(project.link_url)) && (
             <div className="project-actions">
               <a
                 href={project.link_url}

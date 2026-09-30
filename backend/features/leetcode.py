@@ -15,6 +15,7 @@ from database import get_db
 from constants import LEETCODE_GRAPHQL
 from deps import _log, get_current_user_obj, require_admin
 from models import LeetcodeBinding, User
+from ratelimit import SlidingWindow
 from schemas import (
     LeetcodeBoardResponse, LeetcodeDebugSetRequest, LeetcodeMeResponse,
     LeetcodeRefreshResponse, MessageResponse, UpdateLeetcodeDebugRequest,
@@ -349,9 +350,17 @@ def _sync_leetcode_one(bid: int, username: str) -> bool:
         db.close()
 
 
+# 全站手动刷新全局限流：心跳线程每分钟已同步全站，手动刷新只为即时性；
+# 不加限制会被反复触发放大成对 leetcode.cn 的持续并发请求（有封服务器出口 IP 风险）
+refresh_all = SlidingWindow(1, 120)
+
+
 @router.post("/api/leetcode/refresh", response_model=LeetcodeRefreshResponse, tags=["LeetCode"])
 def leetcode_refresh(current_user: User = Depends(get_current_user_obj), db: Session = Depends(get_db)):
     """同步所有绑定用户的 LeetCode 数据（需登录，并发重新请求，失败者保留旧值）"""
+    if not refresh_all.allow("global"):
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                            detail="全站刷新过于频繁，请 2 分钟后再试")
     bindings = db.query(LeetcodeBinding).all()
     if not bindings:
         return LeetcodeRefreshResponse(synced=0, total=0)

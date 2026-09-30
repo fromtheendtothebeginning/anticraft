@@ -80,7 +80,6 @@ class DektClient:
 
     def _http(self):
         s = requests.Session()
-        s.verify = False
         s.headers["User-Agent"] = UA
         s.proxies = {
             "http": "socks5h://%s:%d" % (self.proxy_host, self.socks_port),
@@ -479,7 +478,8 @@ class DektClient:
             raise DektError("教务登录已失效，请重新查询")
         j = self._parse_response(resp)
         if not isinstance(j, dict) or not isinstance(j.get("items"), list):
-            raise DektError("教务系统查询失败(%s): %s" % (resp.status_code, resp.text[:200]))
+            print(f"[kbcx] grades unexpected response {resp.status_code}: {resp.text[:200]}", flush=True)
+            raise DektError("教务系统返回格式异常(HTTP %s)，请稍后重试" % resp.status_code)
         items = j.get("items") or []
         grades = []
         for it in items:
