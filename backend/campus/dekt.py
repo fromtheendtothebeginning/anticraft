@@ -16,6 +16,9 @@ UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
 # 32 位十六进制 GUID：部分课程的 kcb_id 是内部 ID（如毛概），不能当课程代码展示
 _GUID_RE = re.compile(r"^[0-9A-Fa-f]{32}$")
 
+# 考试时间 kssj，如 2026-06-23(10:15-11:45)
+_KSSJ_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})\((\d{1,2}:\d{2})-(\d{1,2}:\d{2})\)")
+
 
 def readable_course_code(*candidates):
     """课程代码取人类可读的课程号：跳过 GUID 形态的 kcb_id，全部无效时返回空串"""
@@ -576,6 +579,67 @@ class DektClient:
             "dates": [{"xqj": d.get("xqj"), "rq": d.get("rq")} for d in j["rqazcList"]],
             "xnmc": xsxx.get("XNMC") or "",
         }
+
+    def fetch_exams(self, xnm, xqm):
+        """查询考试安排（教务系统考试查询，正方桌面接口）：返回结构化考试列表。
+        xnm=学年（如 2025），xqm=学期码（正方桌面约定：上学期 3 / 下学期 12）。
+        """
+        if not self.jwxt_session:
+            raise DektError("未登录教务系统")
+        url = self.jxw_base + "/jwglxt/kwgl/kscx_cxXsksxxIndex.html?doType=query&gnmkdm=N358105"
+        body = {
+            "xnm": str(xnm),
+            "xqm": str(xqm),
+            "ksmcdmb_id": "",
+            "kch": "",
+            "kc": "",
+            "ksrq": "",
+            "kkbm_id": "",
+            "_search": "false",
+            "nd": str(int(time.time() * 1000)),
+            "queryModel.showCount": "100",
+            "queryModel.currentPage": "1",
+            "queryModel.sortName": " ",
+            "queryModel.sortOrder": "asc",
+            "time": "1",
+        }
+        headers = {
+            "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+            "Referer": self.jxw_base + "/jwglxt/kwgl/kscx_cxXsksxxIndex.html?gnmkdm=N358105&layout=default",
+            "X-Requested-With": "XMLHttpRequest",
+            "Origin": self.jxw_base,
+        }
+        try:
+            resp = self.jwxt_session.post(url, data=body, timeout=30,
+                                          headers=headers, allow_redirects=False)
+        except requests.exceptions.RequestException:
+            raise DektError("教务系统响应超时，请重试")
+        if resp.status_code in (302, 901):
+            self.jwxt_session = None
+            raise DektError("教务登录已失效，请重新导入")
+        j = self._parse_response(resp)
+        items = j.get("items") if isinstance(j, dict) else None
+        if not isinstance(items, list):
+            raise DektError("教务系统查询失败(%s): %s" % (resp.status_code, resp.text[:200]))
+        exams = []
+        for it in items:
+            m = _KSSJ_RE.match((it.get("kssj") or "").strip())
+            if not m:
+                print(f"[kscx] unparseable kssj: {it.get('kssj')!r} ({it.get('kcmc')})", flush=True)
+                continue
+            hm = lambda s: "%02d:%s" % (int(s.split(":")[0]), s.split(":")[1])
+            exams.append({
+                "name": (it.get("kcmc") or "").strip(),
+                "ksmc": (it.get("ksmc") or "").strip(),
+                "date": m.group(1),
+                "start": hm(m.group(2)),
+                "end": hm(m.group(3)),
+                "place": (it.get("cdmc") or "").strip(),
+                "seat": (it.get("zwh") or "").strip(),
+                "ksfs": (it.get("ksfs") or "").strip(),
+            })
+        print(f"[kscx] ok: {len(exams)} exams (xnm={xnm}, xqm={xqm})", flush=True)
+        return exams
 
     @staticmethod
     def _calc_gpa(grades):

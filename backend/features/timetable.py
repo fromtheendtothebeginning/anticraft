@@ -67,15 +67,15 @@ def _import_week(client, sess, xnm, xqm, zs):
     return {"ok": True, "zs": zs, **data}
 
 
-def _auto_captcha_import(client, sess, user_id, db, prepare, xnm, xqm, zs, attempts=2):
-    """开启 auto_captcha 时：AI 识码登录教务系统并导入，最多两轮。
+def _auto_captcha_jwxt(client, sess, user_id, db, prepare, fetch, attempts=2):
+    """开启 auto_captcha 时：AI 识码登录教务系统后执行 fetch，最多两轮。
     返回 (成功结果 | None, 待手动验证码 | None)。"""
     vision = _resolve_vision_model(user_id, db)
     pending = None
     for _ in range(max(1, attempts)):
         pending = _safe_prepare(client, prepare)
         if pending is None:
-            return _import_week(client, sess, xnm, xqm, zs), None  # 已登录
+            return fetch(), None  # 已登录
         if not vision or not pending.captcha:
             break
         text = _ai_solve_captcha(_b64(pending.captcha), vision)
@@ -89,7 +89,7 @@ def _auto_captcha_import(client, sess, user_id, db, prepare, xnm, xqm, zs, attem
         except Exception as e:
             _log(f"timetable auto captcha login failed: {str(e)[:150]}")
             continue
-        return _import_week(client, sess, xnm, xqm, zs), None
+        return fetch(), None
     return None, pending
 
 
@@ -112,8 +112,8 @@ def timetable_import(req: TtImportRequest, current_user: User = Depends(get_curr
     if client.jwxt_session is None:
         prepare = lambda: client.prepare_jwxt_login(sess.student_id, sess.password)
         if cred.auto_captcha:
-            result, pending = _auto_captcha_import(client, sess, current_user.id, db, prepare,
-                                                   req.xnm, req.xqm, req.zs)
+            result, pending = _auto_captcha_jwxt(client, sess, current_user.id, db, prepare,
+                                                 lambda: _import_week(client, sess, req.xnm, req.xqm, req.zs))
             if result is not None:
                 return result
         else:
@@ -122,3 +122,51 @@ def timetable_import(req: TtImportRequest, current_user: User = Depends(get_curr
             return {"need_captcha": True, "captcha_base64": _b64(pending.captcha), "zs": req.zs}
 
     return _import_week(client, sess, req.xnm, req.xqm, req.zs)
+
+
+# ============================================================
+# 考试安排导入：教务系统考试查询（kwgl N358105），前端转为日程事件
+# ============================================================
+
+class TtExamImportRequest(BaseModel):
+    xnm: str = ""
+    xqm: str = ""
+    captcha: str = ""  # 手动输入的教务验证码（完成登录用）
+
+
+def _import_exams(client, xnm, xqm):
+    try:
+        return {"ok": True, "exams": client.fetch_exams(xnm=xnm, xqm=xqm)}
+    except DektError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/api/timetable/exams/import", tags=["课程表"])
+def timetable_exams_import(req: TtExamImportRequest, current_user: User = Depends(get_current_user_obj),
+                           db: OrmSession = Depends(get_db)):
+    try:
+        sess, client, cred = _connected_client(current_user, db)
+    except _VpnConnecting:
+        return {"vpn_connecting": True}
+
+    # 教务登录失效/未登录：验证码回填 → 完成登录并顺带完成本次查询
+    if client.jwxt_session is None and (req.captcha or "").strip():
+        try:
+            client.complete_jwxt_login(sess.student_id, req.captcha.strip())
+        except DektError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        return _import_exams(client, req.xnm, req.xqm)
+
+    if client.jwxt_session is None:
+        prepare = lambda: client.prepare_jwxt_login(sess.student_id, sess.password)
+        if cred.auto_captcha:
+            result, pending = _auto_captcha_jwxt(client, sess, current_user.id, db, prepare,
+                                                 lambda: _import_exams(client, req.xnm, req.xqm))
+            if result is not None:
+                return result
+        else:
+            pending = _safe_prepare(client, prepare)
+        if pending is not None:
+            return {"need_captcha": True, "captcha_base64": _b64(pending.captcha)}
+
+    return _import_exams(client, req.xnm, req.xqm)

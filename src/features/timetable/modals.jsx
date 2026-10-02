@@ -30,8 +30,9 @@ const emptyEventDraft = () => ({
 // 教务学期码由用户选择：大一上~大四下 ↔ 1-8
 const TERM_LABELS = ['大一上', '大一下', '大二上', '大二下', '大三上', '大三下', '大四上', '大四下']
 
-export function SemesterModal({ open, timetable, importBusy, importMsg, term, onTermChange, onImport, onSave, onClose }) {
+export function SemesterModal({ open, timetable, busyKind, importMsg, term, onTermChange, onImport, onImportExams, onSave, onClose }) {
   const [draft, setDraft] = useState({ name: '', startDate: '', weekCount: DEFAULT_WEEK_COUNT })
+  const busy = !!busyKind
   useEffect(() => {
     if (open) setDraft({ name: timetable.name, startDate: timetable.startDate, weekCount: timetable.weekCount })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -82,20 +83,30 @@ export function SemesterModal({ open, timetable, importBusy, importMsg, term, on
           <p className="tt-import-box-hint">{t('timetable.importBoxHint')}</p>
           <label className="tt-field">
             <span>{t('timetable.importTerm')}</span>
-            <select value={term} onChange={e => onTermChange(e.target.value)} disabled={importBusy}>
+            <select value={term} onChange={e => onTermChange(e.target.value)} disabled={busy}>
               {TERM_LABELS.map((label, i) => (
                 <option key={i + 1} value={String(i + 1)}>{label}</option>
               ))}
             </select>
           </label>
-          <button
-            type="button"
-            className="btn btn-secondary tt-import-box-btn"
-            onClick={onImport}
-            disabled={importBusy}
-          >
-            {importBusy ? (importMsg || t('timetable.importing')) : t('timetable.importCourse')}
-          </button>
+          <div className="tt-import-btns">
+            <button
+              type="button"
+              className="btn btn-secondary tt-import-box-btn"
+              onClick={onImport}
+              disabled={busy}
+            >
+              {busyKind === 'course' ? (importMsg || t('timetable.importing')) : t('timetable.importCourse')}
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary tt-import-box-btn"
+              onClick={onImportExams}
+              disabled={busy}
+            >
+              {busyKind === 'exam' ? (importMsg || t('timetable.importing')) : t('timetable.importExams')}
+            </button>
+          </div>
         </div>
       </div>
     </Modal>

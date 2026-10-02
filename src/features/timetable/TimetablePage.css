@@ -960,6 +960,17 @@
   gap: 6px;
 }
 
+/* 导入双按钮：课程 / 考试并排 */
+.tt-import-btns {
+  display: flex;
+  gap: 8px;
+}
+
+.tt-import-btns .btn {
+  flex: 1;
+  min-width: 0;
+}
+
 .tt-captcha-img {
   display: block;
   margin: 0 auto 12px;

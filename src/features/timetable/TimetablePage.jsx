@@ -44,8 +44,9 @@ export default function TimetablePage() {
   const [syncErr, setSyncErr] = useState(false)
   // 周视图节次列是否标注上课时间（本机 UI 偏好，不进云端数据）
   const [showTimes, setShowTimes] = useState(() => localStorage.getItem('campus_timetable_showtimes') === '1')
-  // 教务系统导入
-  const [importBusy, setImportBusy] = useState(false)
+  // 教务系统导入（course=课程表 / exam=考试安排；空串=空闲）
+  const [importBusyKind, setImportBusyKind] = useState('')
+  const importBusy = importBusyKind !== ''
   const [importMsg, setImportMsg] = useState('')
   const [importErr, setImportErr] = useState('')
   // 教务学期码：用户选择大一上~大四下（1-8），记忆上次选择
@@ -305,7 +306,7 @@ export default function TimetablePage() {
         continue
       }
       if (b && b.need_captcha) {
-        setCaptchaData({ b64: b.captcha_base64, zs: w, xnm, xqm })
+        setCaptchaData({ b64: b.captcha_base64, kind: 'course', zs: w, xnm, xqm })
         setCaptchaInput('')
         return false // 弹验证码；确认后教务会话已建立，重新走导入
       }
@@ -343,24 +344,96 @@ export default function TimetablePage() {
 
   const doImport = async () => {
     if (importBusy) return
-    setImportBusy(true)
+    setImportBusyKind('course')
     setImportErr('')
     try {
       const ok = await runImport()
       if (ok) setSettingsOpen(false) // 从设置弹窗触发时，导入成功直接回到课表
     } finally {
-      setImportBusy(false)
+      setImportBusyKind('')
+    }
+  }
+
+  // ── 教务系统考试导入：查询所选学期全部考试 → 转为带日期的日程事件（重导按 日期+课名+时间 去重）──
+  const runExamImport = async () => {
+    const now = new Date()
+    const y = now.getFullYear()
+    const m = now.getMonth() + 1
+    const xnm = String(m >= 9 ? y : y - 1)
+    // 教务桌面端学期码（正方约定）：上学期=3、下学期=12，按所选学期序号奇偶取上/下
+    const xqm = Number(importTerm) % 2 === 1 ? '3' : '12'
+    let vpnRetry = 0
+    for (;;) {
+      const res = await apiFetch('/api/timetable/exams/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ xnm, xqm }),
+      })
+      const b = await res.json().catch(() => null)
+      if (b && b.vpn_connecting) {
+        vpnRetry += 1
+        // VPN 建立需要 1-2 分钟，耐心轮询 2 分钟再放弃
+        if (vpnRetry > 20) { setImportErr(t('timetable.importVpnFail')); return false }
+        setImportMsg(t('campusService.vpnAutoConnecting'))
+        await new Promise(r => setTimeout(r, 6000))
+        continue
+      }
+      if (b && b.need_captcha) {
+        setCaptchaData({ b64: b.captcha_base64, kind: 'exam', xnm, xqm })
+        setCaptchaInput('')
+        return false // 弹验证码；确认后教务会话已建立，重新走导入
+      }
+      if (!res.ok || !b || !b.ok) {
+        setImportErr((b && b.detail) || t('timetable.importFailed'))
+        return false
+      }
+      const exams = b.exams || []
+      const existed = new Set((tt.events || []).map(ev => `${ev.date}|${ev.name}|${ev.start}|${ev.end}`))
+      const fresh = []
+      for (const e of exams) {
+        const key = `${e.date}|${e.name}|${e.start}|${e.end}`
+        if (existed.has(key)) continue
+        existed.add(key)
+        fresh.push({
+          id: genId(),
+          name: e.name,
+          place: e.place || '',
+          date: e.date,
+          day: (new Date(`${e.date}T00:00:00`).getDay() + 6) % 7,
+          start: e.start,
+          end: e.end,
+          note: [e.ksmc, e.seat ? `${t('timetable.examSeat')} ${e.seat}` : ''].filter(Boolean).join(' · '),
+        })
+      }
+      persist({ ...tt, events: [...(tt.events || []), ...fresh] })
+      setImportMsg(t('timetable.examImportDone', { total: exams.length, n: fresh.length }))
+      return true
+    }
+  }
+
+  const doExamImport = async () => {
+    if (importBusy) return
+    setImportBusyKind('exam')
+    setImportErr('')
+    try {
+      const ok = await runExamImport()
+      if (ok) setSettingsOpen(false) // 导入成功直接回到课表看考试落位
+    } finally {
+      setImportBusyKind('')
     }
   }
 
   const submitCaptcha = async () => {
     if (!captchaInput.trim() || !captchaData) return
-    setImportBusy(true)
+    const isExam = captchaData.kind === 'exam'
+    setImportBusyKind(isExam ? 'exam' : 'course')
     try {
-      const res = await apiFetch('/api/timetable/import', {
+      const res = await apiFetch(isExam ? '/api/timetable/exams/import' : '/api/timetable/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ zs: captchaData.zs, xnm: captchaData.xnm, xqm: captchaData.xqm, captcha: captchaInput.trim() }),
+        body: JSON.stringify(isExam
+          ? { xnm: captchaData.xnm, xqm: captchaData.xqm, captcha: captchaInput.trim() }
+          : { zs: captchaData.zs, xnm: captchaData.xnm, xqm: captchaData.xqm, captcha: captchaInput.trim() }),
       })
       const b = await res.json().catch(() => null)
       setCaptchaData(null)
@@ -368,9 +441,11 @@ export default function TimetablePage() {
         setImportErr((b && b.detail) || t('timetable.importFailed'))
         return
       }
-      await runImport() // 教务会话已建立，重新走导入
+      // 教务会话已建立，重新走导入
+      if (isExam) await runExamImport()
+      else await runImport()
     } finally {
-      setImportBusy(false)
+      setImportBusyKind('')
     }
   }
 
@@ -464,11 +539,12 @@ export default function TimetablePage() {
       <SemesterModal
         open={settingsOpen}
         timetable={tt}
-        importBusy={importBusy}
+        busyKind={importBusyKind}
         importMsg={importMsg}
         term={importTerm}
         onTermChange={changeImportTerm}
         onImport={doImport}
+        onImportExams={doExamImport}
         onSave={(next) => { saveSettings(next); setSettingsOpen(false) }}
         onClose={() => setSettingsOpen(false)}
       />
