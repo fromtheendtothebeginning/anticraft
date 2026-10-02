@@ -578,6 +578,7 @@ class DektClient:
             "courses": courses,
             "dates": [{"xqj": d.get("xqj"), "rq": d.get("rq")} for d in j["rqazcList"]],
             "xnmc": xsxx.get("XNMC") or "",
+            "nj": xsxx.get("NJDM_ID") or "",  # 年级=入学学年，前端据此把「大一上~大四下」锚定到真实学年
         }
 
     def fetch_exams(self, xnm, xqm):

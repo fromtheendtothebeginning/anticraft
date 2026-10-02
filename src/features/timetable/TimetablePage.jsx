@@ -16,6 +16,15 @@ function genId() {
   return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`
 }
 
+// 「大一上~大四下」(1-8) → 正方学期码：以年级（入学学年）锚定学年，奇=上学期(3)/偶=下学期(12)。
+// 教务接口的 xqm 是 3/12/16 码，不是 1-8 序号；nj 取自教务响应的年级，无年级时返回 null
+function termToSemester(term, nj) {
+  const n = parseInt(nj, 10)
+  const t = parseInt(term, 10)
+  if (!n || !(t >= 1 && t <= 8)) return null
+  return { xnm: String(n + Math.floor((t - 1) / 2)), xqm: t % 2 === 1 ? '3' : '12' }
+}
+
 // 触摸横滑手势：返回可展开的 touch 事件 props；dx 明显大于 dy 且超过阈值才判定
 function useSwipe(onSwipe) {
   const touchRef = useRef(null)
@@ -275,20 +284,22 @@ export default function TimetablePage() {
     setDeleteTarget(null)
   }
 
-  // ── 教务系统导入：首次逐周遍历全学期（直到接口报错），之后仅更新当前停留周 ──
+  // ── 教务系统导入：jwxt 无数据或今天已不在学期范围内（旧学期课表）→ 逐周遍历全学期重置学期；
+  //    学期内则仅更新当前停留周。学期码先按当前日期猜，首个响应的年级会按所选学期纠正 ──
   const runImport = async () => {
     const now = new Date()
     const y = now.getFullYear()
     const m = now.getMonth() + 1
-    // 学年按当前日期锚定；学期码由用户选择（大一上~大四下 ↔ 1-8）
-    const xnm = String(m >= 9 ? y : y - 1)
-    const xqm = importTerm
-    const isFull = !(tt.jwxt && Object.keys(tt.jwxt.weeks || {}).length)
-    const weeks = { ...(tt.jwxt?.weeks || {}) }
+    let xnm = String(m >= 9 ? y : y - 1)
+    let xqm = Number(importTerm) % 2 === 1 ? '3' : '12'
+    const loc = locateToday(tt.startDate, tt.weekCount)
+    const isFull = !(tt.jwxt && Object.keys(tt.jwxt.weeks || {}).length) || !(loc && loc.week)
+    const weeks = isFull ? {} : { ...(tt.jwxt?.weeks || {}) }
     let w = isFull ? 1 : week
     let lastWeek = tt.weekCount
     let imported = 0
     let newStart = tt.startDate
+    let anchored = false
     let vpnRetry = 0
     for (;;) {
       const res = await apiFetch('/api/timetable/import', {
@@ -313,6 +324,15 @@ export default function TimetablePage() {
       if (!res.ok || !b || !b.ok) {
         if (!isFull) setImportErr((b && b.detail) || t('timetable.importFailed'))
         break // 首次导入：遍历到学期之外（接口报错）为止
+      }
+      if (!anchored && b.nj) {
+        anchored = true
+        const want = termToSemester(importTerm, b.nj)
+        if (want && (want.xnm !== xnm || want.xqm !== xqm)) {
+          xnm = want.xnm
+          xqm = want.xqm
+          continue // 换正确学期码重发当前周（此时还没写入任何数据）
+        }
       }
       weeks[w] = b.courses || []
       imported += 1
@@ -382,9 +402,21 @@ export default function TimetablePage() {
         return false
       }
       const exams = b.exams || []
+      // 只导入落在当前课表学期范围内的考试：其他学期的日期不在周网格里，导入了也显示不出来
+      let inRange = exams
+      let skipped = 0
+      if (tt.startDate) {
+        const from = new Date(`${tt.startDate}T00:00:00`).getTime()
+        const to = from + (parseInt(tt.weekCount, 10) || 0) * 7 * 86400000
+        inRange = exams.filter(x => {
+          const t = new Date(`${x.date}T00:00:00`).getTime()
+          return t >= from && t < to
+        })
+        skipped = exams.length - inRange.length
+      }
       const existed = new Set((tt.events || []).map(ev => `${ev.date}|${ev.name}|${ev.start}|${ev.end}`))
       const fresh = []
-      for (const e of exams) {
+      for (const e of inRange) {
         const key = `${e.date}|${e.name}|${e.start}|${e.end}`
         if (existed.has(key)) continue
         existed.add(key)
@@ -400,7 +432,8 @@ export default function TimetablePage() {
         })
       }
       persist({ ...tt, events: [...(tt.events || []), ...fresh] })
-      setImportMsg(t('timetable.examImportDone', { total: exams.length, n: fresh.length }))
+      setImportMsg(t('timetable.examImportDone', { total: inRange.length, n: fresh.length })
+        + (skipped > 0 ? t('timetable.examSkippedOther', { k: skipped }) : ''))
       return true
     }
   }
