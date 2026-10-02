@@ -354,20 +354,14 @@ export default function TimetablePage() {
     }
   }
 
-  // ── 教务系统考试导入：查询所选学期全部考试 → 转为带日期的日程事件（重导按 日期+课名+时间 去重）──
+  // ── 教务系统考试导入：后端自动选最近有考试数据的学期 → 转为带日期的日程事件（重导按 日期+课名+时间 去重）──
   const runExamImport = async () => {
-    const now = new Date()
-    const y = now.getFullYear()
-    const m = now.getMonth() + 1
-    const xnm = String(m >= 9 ? y : y - 1)
-    // 教务桌面端学期码（正方约定）：上学期=3、下学期=12，按所选学期序号奇偶取上/下
-    const xqm = Number(importTerm) % 2 === 1 ? '3' : '12'
     let vpnRetry = 0
     for (;;) {
       const res = await apiFetch('/api/timetable/exams/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ xnm, xqm }),
+        body: JSON.stringify({}),
       })
       const b = await res.json().catch(() => null)
       if (b && b.vpn_connecting) {
@@ -379,7 +373,7 @@ export default function TimetablePage() {
         continue
       }
       if (b && b.need_captcha) {
-        setCaptchaData({ b64: b.captcha_base64, kind: 'exam', xnm, xqm })
+        setCaptchaData({ b64: b.captcha_base64, kind: 'exam' })
         setCaptchaInput('')
         return false // 弹验证码；确认后教务会话已建立，重新走导入
       }
@@ -432,7 +426,7 @@ export default function TimetablePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(isExam
-          ? { xnm: captchaData.xnm, xqm: captchaData.xqm, captcha: captchaInput.trim() }
+          ? { captcha: captchaInput.trim() }
           : { zs: captchaData.zs, xnm: captchaData.xnm, xqm: captchaData.xqm, captcha: captchaInput.trim() }),
       })
       const b = await res.json().catch(() => null)
