@@ -6,7 +6,7 @@ import CategoryDropdown from '../../components/CategoryDropdown'
 import { UiIcon } from '../../components/Icons'
 import { t } from '../../i18n'
 import { apiFetch } from '../../utils/api'
-import { emptyTimetable, loadStore, saveStore, normalizeStore, semesterLabel, locateToday, deriveImportedCourses, removeImportedOccurrence, removeImportedSegment, eventConflicts, WEEKDAY_LABELS } from './model'
+import { emptyTimetable, loadStore, saveStore, normalizeStore, semesterLabel, semesterKeyOf, dateISOOf, locateToday, deriveImportedCourses, removeImportedOccurrence, removeImportedSegment, eventConflicts, WEEKDAY_LABELS } from './model'
 import WeekBoard from './WeekBoard'
 import DayList from './DayList'
 import WeekNav from './WeekNav'
@@ -24,6 +24,45 @@ function termToSemester(term, nj) {
   const t = parseInt(term, 10)
   if (!n || !(t >= 1 && t <= 8)) return null
   return { xnm: String(n + Math.floor((t - 1) / 2)), xqm: t % 2 === 1 ? '3' : '12' }
+}
+
+// 今天所在的学期 key（按日历推）
+function todaySemesterKey() {
+  return semesterKeyOf(dateISOOf(new Date()))
+}
+
+// 学期 key → 教务查询参数（key 即「学年-学期码」）；异常 key 按今天日历兜底
+function semesterParams(key) {
+  const mk = /^(\d{4})-(3|12|16)$/.exec(key)
+  const now = new Date()
+  const y = now.getFullYear()
+  const m = now.getMonth() + 1
+  return mk
+    ? { xnm: mk[1], xqm: mk[2] }
+    : { xnm: String(m >= 9 ? y : y - 1), xqm: m >= 9 || m <= 1 ? '3' : '12' }
+}
+
+// 打开页面落到哪个学期：包含今天的优先，否则最近一个开始于今天之前的，再否则最早/唯一的
+function landingKey(store) {
+  if (!store) return ''
+  const sems = store.semesters
+  const keys = Object.keys(sems)
+  if (!keys.length) return ''
+  const tk = todaySemesterKey()
+  if (sems[tk]) {
+    const loc = locateToday(sems[tk].startDate, sems[tk].weekCount)
+    if (loc && loc.week) return tk
+  }
+  const today = dateISOOf(new Date())
+  const dated = keys.filter(k => sems[k].startDate).sort((a, b) => (sems[a].startDate < sems[b].startDate ? -1 : 1))
+  const past = dated.filter(k => sems[k].startDate <= today)
+  return (past.length ? past[past.length - 1] : dated[dated.length - 1]) || keys[0]
+}
+
+// 每学期记住上次看到的位置（设备级，不进云端）：切走再切回还在原地
+const POS_KEY = 'tt.semesterPos'
+function loadPos() {
+  try { return JSON.parse(localStorage.getItem(POS_KEY)) || {} } catch { return {} }
 }
 
 // 触摸横滑手势：返回可展开的 touch 事件 props；dx 明显大于 dy 且超过阈值才判定
@@ -48,7 +87,8 @@ export default function TimetablePage() {
   // 多学期存储（store = { nj, active, semesters: { '学年-学期码': 课表 } }）：
   // 本地缓存先行渲染，云端合并交给挂载后的同步逻辑（updatedAt 最后写入胜）
   const [store, setStore] = useState(() => loadStore())
-  const [activeKey, setActiveKey] = useState(() => (store && store.active) || '')
+  // 打开默认落在「今天所在学期」（没有则最近的过去学期），不是上次看的位置
+  const [activeKey, setActiveKey] = useState(() => landingKey(store))
   // 当前学期的课表（无数据给空表）；全部数据变更经 persist/persistSemester 走本地 + 云端
   const tt = useMemo(() => (store && store.semesters[activeKey]) || emptyTimetable(), [store, activeKey])
   const [view, setView] = useState('week') // week | day
@@ -63,14 +103,16 @@ export default function TimetablePage() {
   const importBusy = importBusyKind !== ''
   const [importMsg, setImportMsg] = useState('')
   const [importErr, setImportErr] = useState('')
-  // 教务学期码：用户选择大一上~大四下（1-8），记忆上次选择
-  const [importTerm, setImportTerm] = useState(() => localStorage.getItem('tt.importTerm') || '3')
-  const changeImportTerm = (v) => {
-    setImportTerm(v)
-    try { localStorage.setItem('tt.importTerm', v) } catch { /* 隐私模式忽略 */ }
-  }
   const [captchaData, setCaptchaData] = useState(null) // { b64, zs, xnm, xqm }
   const [captchaInput, setCaptchaInput] = useState('')
+
+  // 每学期记住上次看到的位置（切走再切回原地）
+  const posRef = useRef(loadPos())
+  useEffect(() => {
+    if (!activeKey) return
+    posRef.current = { ...posRef.current, [activeKey]: { week, day } }
+    try { localStorage.setItem(POS_KEY, JSON.stringify(posRef.current)) } catch { /* 忽略 */ }
+  }, [week, day, activeKey])
 
   const toggleShowTimes = () => {
     setShowTimes(v => {
@@ -133,9 +175,9 @@ export default function TimetablePage() {
         if (cloudAt > localAt) {
           saveStore(cloud)
           setStore(cloud)
-          setActiveKey(cloud.active)
+          setActiveKey(landingKey(cloud))
           // 新设备首次采纳云端数据时，同样落到当前周/今天
-          const sem = cloud.semesters[cloud.active] || emptyTimetable()
+          const sem = cloud.semesters[landingKey(cloud)] || emptyTimetable()
           const loc = locateToday(sem.startDate, sem.weekCount)
           if (loc && loc.week) setWeek(loc.week)
           if (loc) setDay(loc.dayIndex)
@@ -147,39 +189,61 @@ export default function TimetablePage() {
     return () => { cancelled = true }
   }, [token])
 
-  // 写入指定学期课表（activate=true 时切到该学期），本地 + 云端一次更新
-  const persistSemester = (key, sem, activate, nj) => {
+  // 写入指定学期课表，本地 + 云端一次更新（nj 从学期数据上提，供学期命名与换算）
+  const persistSemester = (key, sem) => {
     const base = storeRef.current || { version: 1, nj: '', active: key, semesters: {}, updatedAt: 0 }
     const nextStore = {
       ...base,
-      nj: base.nj || nj || sem.nj || '',
+      nj: base.nj || sem.nj || '',
       semesters: { ...base.semesters, [key]: sem },
-      active: activate ? key : (base.active || key),
+      active: base.active || key,
       updatedAt: Date.now(),
     }
     setStore(nextStore)
-    if (activate) setActiveKey(key)
     saveStore(nextStore)
     if (token) pushCloud(nextStore)
   }
 
   // 写入当前学期课表（所有手动编辑的统一出口）
   const persist = (next) => {
-    persistSemester(activeKey, { ...next, updatedAt: Date.now() }, false)
+    persistSemester(activeKey, { ...next, updatedAt: Date.now() })
   }
 
-  // ── 学期切换：多份课表并存，切换后落到该学期的今天/第 1 周 ──
+  // 学期选项：已知年级列全「大一上~大四下」（可选中未创建的学期去导入），否则列已有学期 + 今天所在学期
+  const semesterOptions = useMemo(() => {
+    const nj = (store && store.nj) || ''
+    const opts = []
+    const seen = new Set()
+    const push = (k) => {
+      if (k && !seen.has(k)) { seen.add(k); opts.push({ value: k, label: semesterLabel(k, nj) }) }
+    }
+    if (nj) {
+      for (let i = 1; i <= 8; i++) {
+        const s = termToSemester(String(i), nj)
+        if (s) push(`${s.xnm}-${s.xqm}`)
+      }
+    }
+    for (const k of (store ? Object.keys(store.semesters) : [])) push(k)
+    if (!nj) push(todaySemesterKey())
+    const tk = todaySemesterKey()
+    return opts.map(o => (o.value === tk ? { ...o, label: `${o.label}（本学期）` } : o))
+  }, [store])
+
+  // ── 学期切换：纯设备视图状态（不推云端，避免切换噪声顶掉数据编辑）。
+  //    优先落到该学期的今天；学期外则回到上次看到的位置（没有就第 1 周）──
   const switchSemester = (key) => {
-    if (!store || !key || key === activeKey || !store.semesters[key]) return
-    const nextStore = { ...store, active: key, updatedAt: Date.now() }
+    if (!key || key === activeKey) return
     setActiveKey(key)
-    setStore(nextStore)
-    saveStore(nextStore)
-    if (token) pushCloud(nextStore)
-    const sem = nextStore.semesters[key] || emptyTimetable()
+    const sem = (store && store.semesters[key]) || emptyTimetable()
     const loc = locateToday(sem.startDate, sem.weekCount)
-    setWeek(loc && loc.week ? loc.week : 1)
-    setDay(loc ? loc.dayIndex : 0)
+    if (loc && loc.week) {
+      setWeek(loc.week)
+      setDay(loc.dayIndex)
+      return
+    }
+    const saved = posRef.current[key]
+    setWeek(saved ? saved.week : 1)
+    setDay(saved ? saved.day : 0)
   }
 
   const today = useMemo(() => locateToday(tt.startDate, tt.weekCount), [tt.startDate, tt.weekCount])
@@ -319,26 +383,19 @@ export default function TimetablePage() {
     setDeleteTarget(null)
   }
 
-  // ── 教务系统导入：目标学期=所选学期（已知年级精确换算，未知先按当前日期猜、响应年级纠正）。
-  //    目标学期无数据或今天不在其范围内 → 逐周遍历全量重导；范围内仅刷新停留周/今天所在周 ──
+  // ── 教务系统导入：目标=当前学期（key 即「学年-学期码」，直读为请求参数）。
+  //    该学期无数据或今天不在其范围内 → 逐周遍历全量重导；范围内仅刷新停留周 ──
   const runImport = async () => {
-    const now = new Date()
-    const y = now.getFullYear()
-    const m = now.getMonth() + 1
-    const known = termToSemester(importTerm, store && store.nj)
-    let xnm = known ? known.xnm : String(m >= 9 ? y : y - 1)
-    let xqm = known ? known.xqm : (Number(importTerm) % 2 === 1 ? '3' : '12')
-    let targetKey = `${xnm}-${xqm}`
-    let targetSem = (store && store.semesters[targetKey]) || emptyTimetable()
-    let nj = (store && store.nj) || ''
-    let loc = locateToday(targetSem.startDate, targetSem.weekCount)
-    let isFull = !(targetSem.jwxt && Object.keys(targetSem.jwxt.weeks || {}).length) || !(loc && loc.week)
-    let weeks = isFull ? {} : { ...(targetSem.jwxt?.weeks || {}) }
-    let w = isFull ? 1 : (targetKey === activeKey ? week : loc.week)
-    let lastWeek = targetSem.weekCount
+    const { xnm, xqm } = semesterParams(activeKey)
+    const targetKey = activeKey || `${xnm}-${xqm}`
+    const loc = locateToday(tt.startDate, tt.weekCount)
+    const isFull = !(tt.jwxt && Object.keys(tt.jwxt.weeks || {}).length) || !(loc && loc.week)
+    const weeks = isFull ? {} : { ...(tt.jwxt?.weeks || {}) }
+    let w = isFull ? 1 : week
+    let lastWeek = tt.weekCount
     let imported = 0
-    let newStart = targetSem.startDate
-    let anchored = !!known
+    let newStart = tt.startDate
+    let njLearned = tt.nj || ''
     let vpnRetry = 0
     for (;;) {
       const res = await apiFetch('/api/timetable/import', {
@@ -364,24 +421,7 @@ export default function TimetablePage() {
         if (!isFull) setImportErr((b && b.detail) || t('timetable.importFailed'))
         break // 全量导入：遍历到学期之外（接口报错）为止
       }
-      if (!anchored && b.nj) {
-        anchored = true
-        nj = b.nj
-        const want = termToSemester(importTerm, b.nj)
-        if (want && (want.xnm !== xnm || want.xqm !== xqm)) {
-          // 年级纠正了学期：换正确学期码，目标学期改为全量遍历（此刻还没写入任何数据）
-          xnm = want.xnm
-          xqm = want.xqm
-          targetKey = `${xnm}-${xqm}`
-          targetSem = (store && store.semesters[targetKey]) || emptyTimetable()
-          isFull = true
-          weeks = {}
-          w = 1
-          lastWeek = targetSem.weekCount
-          newStart = targetSem.startDate
-          continue
-        }
-      }
+      if (b.nj) njLearned = b.nj // 年级随响应学到，供学期命名与「大一上~大四下」换算
       weeks[w] = b.courses || []
       imported += 1
       lastWeek = w
@@ -398,15 +438,16 @@ export default function TimetablePage() {
       if (isFull) setImportErr(t('timetable.importFailed'))
       return false
     }
-    const weekCount = isFull ? Math.max(1, lastWeek) : targetSem.weekCount
+    const weekCount = isFull ? Math.max(1, lastWeek) : tt.weekCount
     const next = {
-      ...targetSem,
-      nj,
+      ...tt,
+      nj: njLearned,
       jwxt: { weeks, importedAt: Date.now() },
-      startDate: newStart || targetSem.startDate,
+      startDate: newStart || tt.startDate,
       weekCount,
     }
-    persistSemester(targetKey, next, true, nj) // 导入完成切到该学期
+    persistSemester(targetKey, next)
+    if (targetKey !== activeKey) setActiveKey(targetKey) // 无学期选中（key 异常兜底）时落到导入的学期
     if (isFull) {
       setImportMsg(t('timetable.importDone', { n: imported }))
       const after = locateToday(next.startDate, next.weekCount)
@@ -428,16 +469,11 @@ export default function TimetablePage() {
     }
   }
 
-  // ── 教务系统考试导入：按所选学期精确查询（上学期=3/下学期=12，已知年级精确换算），
-  //    考试转为该学期的带日期日程事件（重导按 日期+课名+时间 去重），完成后切到该学期 ──
+  // ── 教务系统考试导入：按当前学期精确查询（key 直读「学年-学期码」），
+  //    考试转为该学期的带日期日程事件（重导按 日期+课名+时间 去重）──
   const runExamImport = async () => {
-    const now = new Date()
-    const y = now.getFullYear()
-    const m = now.getMonth() + 1
-    const known = termToSemester(importTerm, store && store.nj)
-    const xnm = known ? known.xnm : String(m >= 9 ? y : y - 1)
-    const xqm = known ? known.xqm : (Number(importTerm) % 2 === 1 ? '3' : '12')
-    const targetKey = `${xnm}-${xqm}`
+    const { xnm, xqm } = semesterParams(activeKey)
+    const targetKey = activeKey || `${xnm}-${xqm}`
     let vpnRetry = 0
     for (;;) {
       const res = await apiFetch('/api/timetable/exams/import', {
@@ -463,21 +499,20 @@ export default function TimetablePage() {
         setImportErr((b && b.detail) || t('timetable.importFailed'))
         return false
       }
-      const targetSem = (store && store.semesters[targetKey]) || emptyTimetable()
       const exams = b.exams || []
-      // 只导入落在该学期课表范围内的考试（该学期还没导入课程时没有范围，全部收下）
+      // 只导入落在该学期课表范围内的考试（该学期还没设置起点时没有范围，全部收下）
       let inRange = exams
       let skipped = 0
-      if (targetSem.startDate) {
-        const from = new Date(`${targetSem.startDate}T00:00:00`).getTime()
-        const to = from + (parseInt(targetSem.weekCount, 10) || 0) * 7 * 86400000
+      if (tt.startDate) {
+        const from = new Date(`${tt.startDate}T00:00:00`).getTime()
+        const to = from + (parseInt(tt.weekCount, 10) || 0) * 7 * 86400000
         inRange = exams.filter(x => {
           const d = new Date(`${x.date}T00:00:00`).getTime()
           return d >= from && d < to
         })
         skipped = exams.length - inRange.length
       }
-      const existed = new Set((targetSem.events || []).map(ev => `${ev.date}|${ev.name}|${ev.start}|${ev.end}`))
+      const existed = new Set((tt.events || []).map(ev => `${ev.date}|${ev.name}|${ev.start}|${ev.end}`))
       const fresh = []
       for (const e of inRange) {
         const key = `${e.date}|${e.name}|${e.start}|${e.end}`
@@ -494,9 +529,10 @@ export default function TimetablePage() {
           note: [e.ksmc, e.seat ? `${t('timetable.examSeat')} ${e.seat}` : ''].filter(Boolean).join(' · '),
         })
       }
-      persistSemester(targetKey, { ...targetSem, events: [...(targetSem.events || []), ...fresh] }, true)
+      persistSemester(targetKey, { ...tt, events: [...(tt.events || []), ...fresh] })
+      if (targetKey !== activeKey) setActiveKey(targetKey)
       setImportMsg(t('timetable.examImportDone', {
-        sem: semesterLabel(targetKey, (store && store.nj) || ''),
+        sem: semesterLabel(targetKey, ((store && store.nj) || tt.nj || '')),
         total: inRange.length, n: fresh.length,
       }) + (skipped > 0 ? t('timetable.examSkippedOther', { k: skipped }) : ''))
       return true
@@ -571,15 +607,15 @@ export default function TimetablePage() {
             >{t('timetable.viewDay')}</button>
           </div>
           <div className="tt-actions">
-            {store && Object.keys(store.semesters).length > 0 && (
+            {semesterOptions.length > 0 && (
               <div className="tt-semdd" title={t('timetable.switchSemester')}>
                 <CategoryDropdown
                   popover
                   closeOnSelect
                   hideClear
-                  value={activeKey}
+                  value={activeKey || todaySemesterKey()}
                   onChange={switchSemester}
-                  options={Object.keys(store.semesters).map(k => ({ value: k, label: semesterLabel(k, store.nj) }))}
+                  options={semesterOptions}
                 />
               </div>
             )}
@@ -645,8 +681,9 @@ export default function TimetablePage() {
         timetable={tt}
         busyKind={importBusyKind}
         importMsg={importMsg}
-        term={importTerm}
-        onTermChange={changeImportTerm}
+        semesterKey={activeKey || todaySemesterKey()}
+        semesterOptions={semesterOptions}
+        onSemesterChange={switchSemester}
         onImport={doImport}
         onImportExams={doExamImport}
         onSave={(next) => { saveSettings(next); setSettingsOpen(false) }}

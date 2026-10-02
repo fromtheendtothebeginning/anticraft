@@ -10,7 +10,7 @@ import { t } from '../../i18n'
 import { apiFetch } from '../../utils/api'
 import {
   SLOT_TIMES, DEFAULT_WEEK_COUNT, WEEKDAY_LABELS, WEEKDAY_SHORT,
-  emptyDraft, courseHue, weekRangeLabel, minutesOf, expandDateRange,
+  dateISOOf, emptyDraft, courseHue, weekRangeLabel, minutesOf, expandDateRange,
 } from './model'
 import TimePicker from './TimePicker'
 
@@ -27,20 +27,24 @@ const emptyEventDraft = () => ({
   start: '12:00', end: '13:00', note: '',
 })
 
-// 教务学期码由用户选择：大一上~大四下 ↔ 1-8
-const TERM_LABELS = ['大一上', '大一下', '大二上', '大二下', '大三上', '大三下', '大四上', '大四下']
-
-export function SemesterModal({ open, timetable, busyKind, importMsg, term, onTermChange, onImport, onImportExams, onSave, onClose }) {
-  const [draft, setDraft] = useState({ name: '', startDate: '', weekCount: DEFAULT_WEEK_COUNT })
+// 学期设置：学期选择置顶且与工具栏切换器同一状态源（切换即生效）；
+// 第一周周一在该学期已有课表时显示当时填的值，没有则默认从今天开始
+export function SemesterModal({ open, timetable, busyKind, importMsg, semesterKey, semesterOptions, onSemesterChange, onImport, onImportExams, onSave, onClose }) {
+  const [draft, setDraft] = useState({ startDate: '', weekCount: DEFAULT_WEEK_COUNT })
   const busy = !!busyKind
   useEffect(() => {
-    if (open) setDraft({ name: timetable.name, startDate: timetable.startDate, weekCount: timetable.weekCount })
+    if (open) {
+      setDraft({
+        startDate: timetable.startDate || dateISOOf(new Date()),
+        weekCount: timetable.weekCount || DEFAULT_WEEK_COUNT,
+      })
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
+  }, [open, semesterKey])
 
   const save = () => {
     const wc = Math.min(Math.max(1, parseInt(draft.weekCount, 10) || DEFAULT_WEEK_COUNT), 40)
-    onSave({ name: draft.name.trim(), startDate: draft.startDate, weekCount: wc })
+    onSave({ startDate: draft.startDate, weekCount: wc })
   }
 
   return (
@@ -50,16 +54,17 @@ export function SemesterModal({ open, timetable, busyKind, importMsg, term, onTe
       confirmText={t('modal.save')}
       onConfirm={save}
       onCancel={onClose}
-      confirmDisabled={!draft.startDate}
     >
       <div className="tt-form">
         <label className="tt-field">
-          <span>{t('timetable.settingsName')}</span>
-          <input
-            type="text"
-            value={draft.name}
-            onChange={e => setDraft({ ...draft, name: e.target.value })}
-            placeholder={t('timetable.settingsNamePlaceholder')}
+          <span>{t('timetable.importTerm')}</span>
+          <CategoryDropdown
+            popover
+            value={semesterKey}
+            onChange={onSemesterChange}
+            options={semesterOptions}
+            hideClear
+            closeOnSelect
           />
         </label>
         <label className="tt-field">
@@ -81,14 +86,6 @@ export function SemesterModal({ open, timetable, busyKind, importMsg, term, onTe
         </label>
         <div className="tt-import-box">
           <p className="tt-import-box-hint">{t('timetable.importBoxHint')}</p>
-          <label className="tt-field">
-            <span>{t('timetable.importTerm')}</span>
-            <select value={term} onChange={e => onTermChange(e.target.value)} disabled={busy}>
-              {TERM_LABELS.map((label, i) => (
-                <option key={i + 1} value={String(i + 1)}>{label}</option>
-              ))}
-            </select>
-          </label>
           <div className="tt-import-btns">
             <button
               type="button"

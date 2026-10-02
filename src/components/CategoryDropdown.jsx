@@ -41,7 +41,9 @@ function CategoryDropdown({ value, onChange, options = [], placeholder = t('cate
     onChange(v)
     setOpen(false)
     setPos(null)
-    if (closeOnSelect) setJustPicked(true)
+    // popover 模式靠点击开合、没有 hover 冲突，进入 just-picked 反而会压住重开的菜单
+    //（触摸/程序化移动鼠标时 mouseleave 不触发，菜单一直隐形）
+    if (closeOnSelect && !popover) setJustPicked(true)
   }
 
   const close = () => {
