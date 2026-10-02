@@ -106,6 +106,9 @@ backend/.venv-wsl/
 deploy.bat.bak-*
 setup-wsl-portforward.ps1
 
+# 校园 VPN 心跳（服务器专属运维代码，不入库；开关 CAMPUS_HEARTBEAT=1 只写服务器 .env，本地绝不启用）
+backend/features/campus_heartbeat.py
+
 # 正式签名（keystore 与口令，绝不入库）
 android/keystore.properties
 android/keystore/
