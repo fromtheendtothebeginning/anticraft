@@ -520,8 +520,10 @@ export default function TimetablePage() {
         existed.add(key)
         fresh.push({
           id: genId(),
+          kind: 'exam',
           name: e.name,
           place: e.place || '',
+          seat: e.seat || '',
           date: e.date,
           day: (new Date(`${e.date}T00:00:00`).getDay() + 6) % 7,
           start: e.start,

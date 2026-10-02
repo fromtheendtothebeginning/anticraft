@@ -872,6 +872,7 @@
     "examImportDone": "考试导入完成（{sem}）：查询 {total} 场，新增 {n} 场",
     "examSkippedOther": "（另有 {k} 场不在该学期课表范围内，未导入）",
     "examSeat": "座位",
+    "examTag": "考试",
     "switchSemester": "切换学期",
     "importing": "导入中…",
     "importBoxHint": "从教务系统一键导入整学期课程与考试安排，并自动填写学期起点与总周数",

@@ -6,7 +6,7 @@ import { UiIcon } from '../../components/Icons'
 import { t } from '../../i18n'
 import {
   SLOT_TIMES, SECTIONS, WEEKDAY_SHORT, SUBS_PER_SLOT,
-  dateOfWeekDay, dateISOOf, courseMatchesWeek, courseHue, lessonPassed,
+  dateOfWeekDay, dateISOOf, courseMatchesWeek, courseHue, lessonPassed, eventPassed,
   eventOnDay, minutesOf, minutesToSub, adjustmentOnDate, splitPlace,
 } from './model'
 
@@ -35,6 +35,18 @@ export default function WeekBoard({ timetable, week, today, now, showTimes, onPi
     for (const c of list) {
       for (let s = c.slotStart; s <= c.slotEnd; s++) covered.add(`${di}-${s}`)
     }
+  })
+  // 考试卡与课程同款底色：考试时间覆盖到的格子同样排除（虚线底不画进卡里）
+  events.forEach(ev => {
+    if (ev.kind !== 'exam') return
+    const s = minutesOf(ev.start)
+    const e = minutesOf(ev.end)
+    WEEKDAY_SHORT.forEach((_, di) => {
+      if (!eventOnDay(ev, colISOs[di], di)) return
+      SLOT_TIMES.forEach(([st, en], si) => {
+        if (s < minutesOf(en) && e > minutesOf(st)) covered.add(`${di}-${si}`)
+      })
+    })
   })
 
   return (
@@ -107,11 +119,33 @@ export default function WeekBoard({ timetable, week, today, now, showTimes, onPi
           // 最短 5 份（约半节）保证「课名 + 时间」两行都读得出来
           const aEnd = Math.max(aE, aS + 5)
           const span = Math.max(5, subRow(aEnd) - subRow(aS) + 1)
+          const isExam = ev.kind === 'exam'
           return (
             WEEKDAY_SHORT.map((_, di) => {
               if (!eventOnDay(ev, colISOs[di], di)) return null
               // 放假列：按星期重复的日程当天不显示（带日期的日程照常）
               if (colAdj[di] && colAdj[di].type === 'off' && !ev.date) return null
+              if (isExam) {
+                // 考试卡：与课程同款组件——顶部「考试+开始时间」，考场拆行、座位号，考完置灰
+                const [placeZh, placeCode] = splitPlace(ev.place)
+                return (
+                  <button
+                    type="button"
+                    key={ev.id}
+                    className={`tt-course${eventPassed(ev, now) ? ' past' : ''}`}
+                    data-hue={courseHue(ev.name)}
+                    title={[ev.name, `${ev.start}–${ev.end}`, ev.place, ev.seat ? `${t('timetable.examSeat')} ${ev.seat}` : ''].filter(Boolean).join(' · ')}
+                    style={{ gridColumn: di + 2, gridRow: `${subRow(aS)} / span ${span}` }}
+                    onClick={() => onPickEvent(ev)}
+                  >
+                    <span className="tt-course-time">{t('timetable.examTag')} {ev.start}</span>
+                    <span className="tt-course-name">{ev.name}</span>
+                    {ev.place && <span className="tt-course-place">{placeZh}</span>}
+                    {ev.place && placeCode && <span className="tt-course-code">{placeCode}</span>}
+                    {ev.seat && <span className="tt-course-teacher">{t('timetable.examSeat')} {ev.seat}</span>}
+                  </button>
+                )
+              }
               return (
                 <button
                   type="button"

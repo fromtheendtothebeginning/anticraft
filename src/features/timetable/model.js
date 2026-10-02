@@ -58,13 +58,23 @@ export function semesterLabel(key, nj) {
   return `${xnm}-${xnm + 1} ${m[2] === '3' ? '第一学期' : '第二学期'}`
 }
 
+// 旧版考试导入的日程没有 kind/seat 字段：按备注含「考试」补标并提取座位号
+//（考试的课程卡样式渲染与考完置灰都依赖 kind）
+function migrateEvents(events) {
+  return (events || []).map(ev => {
+    if (ev.kind || !ev.date || !(ev.note || '').includes('考试')) return ev
+    const m = /座位\s*([0-9A-Za-z]+)/.exec(ev.note || '')
+    return { ...ev, kind: 'exam', seat: ev.seat || (m ? m[1] : '') }
+  })
+}
+
 // 任意历史/新版数据 → 标准多学期结构（旧版单课表按学期起点归入对应学期）；无有效数据返回 null
 export function normalizeStore(d) {
   if (!d || typeof d !== 'object') return null
   if (d.semesters && typeof d.semesters === 'object') {
     const semesters = {}
     for (const [k, v] of Object.entries(d.semesters)) {
-      if (v && Array.isArray(v.courses)) semesters[k] = { ...emptyTimetable(), ...v }
+      if (v && Array.isArray(v.courses)) semesters[k] = { ...emptyTimetable(), ...v, events: migrateEvents(v.events) }
     }
     if (!Object.keys(semesters).length) return null
     const active = semesters[d.active] ? d.active : Object.keys(semesters)[0]
@@ -74,7 +84,7 @@ export function normalizeStore(d) {
     const key = semesterKeyOf(d.startDate)
     return {
       version: 1, nj: d.nj || '', active: key, updatedAt: d.updatedAt || 0,
-      semesters: { [key]: { ...emptyTimetable(), ...d } },
+      semesters: { [key]: { ...emptyTimetable(), ...d, events: migrateEvents(d.events) } },
     }
   }
   return null
@@ -388,4 +398,11 @@ export function lessonPassed(startDate, week, dayIndex, course, now) {
   if (!d) return false
   const end = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, courseEndMin(course))
   return end.getTime() < now.getTime()
+}
+
+// 考试是否已结束（考完变灰）：带日期日程的结束时刻已过
+export function eventPassed(ev, now) {
+  if (!ev.date || !ev.end) return false
+  const t = new Date(`${ev.date}T${ev.end}:00`)
+  return !Number.isNaN(t.getTime()) && t.getTime() < now.getTime()
 }

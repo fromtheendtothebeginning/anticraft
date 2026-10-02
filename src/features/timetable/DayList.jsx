@@ -4,7 +4,7 @@
 import { t } from '../../i18n'
 import {
   SLOT_TIMES, SECTIONS, WEEKDAY_SHORT, WEEKDAY_LABELS,
-  dateOfWeekDay, dateISOOf, coursesOfDay, courseHue, lessonPassed, weekRangeLabel,
+  dateOfWeekDay, dateISOOf, coursesOfDay, courseHue, lessonPassed, eventPassed, weekRangeLabel,
   minutesOf, fmtMin, sectionOfSlot, eventOnDay, courseEndMin, adjustmentOnDate,
 } from './model'
 
@@ -94,18 +94,22 @@ export default function DayList({ timetable, week, day, today, now, onSetDay, on
       )
     } else {
       const ev = it.ev
+      const isExam = ev.kind === 'exam'
+      const past = isExam && eventPassed(ev, now)
+      const hue = isExam ? courseHue(ev.name) : undefined
+      const meta = [ev.place, isExam && ev.seat ? `${t('timetable.examSeat')} ${ev.seat}` : ''].filter(Boolean).join(' · ')
       rows.push(
-        <button type="button" key={ev.id} className="tt-dayrow is-event" onClick={() => onPickEvent(ev)}>
-          <span className="tt-dayrow-time">
+        <button type="button" key={ev.id} className={`tt-dayrow${past ? ' past' : ''}`} onClick={() => onPickEvent(ev)}>
+          <span className="tt-dayrow-time" data-hue={hue}>
             <b>{ev.start}</b>
             <i>{ev.end}</i>
           </span>
-          <span className="tt-dayrow-card">
+          <span className="tt-dayrow-card" data-hue={hue}>
             <span className="tt-dayrow-name">
               {ev.name}
-              <em>{t('timetable.eventTag')}</em>
+              <em>{isExam ? t('timetable.examTag') : t('timetable.eventTag')}</em>
             </span>
-            {ev.place && <span className="tt-dayrow-meta">{ev.place}</span>}
+            {meta && <span className="tt-dayrow-meta">{meta}</span>}
           </span>
           <span className="tt-dayrow-weeks">
             {ev.date ? `${Number(ev.date.slice(5, 7))}/${Number(ev.date.slice(8, 10))}` : t('timetable.weeklyTag')}
