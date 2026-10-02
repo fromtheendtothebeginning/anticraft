@@ -24,7 +24,7 @@ if len(SECRET_KEY) < 32:
 if "anticraft" in SECRET_KEY.lower() or not re.fullmatch(r"[a-zA-Z0-9_-]{32,64}", SECRET_KEY):
     print("[auth] 警告：SECRET_KEY 可能为弱密钥，建议轮换")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 小时
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 30  # 30 天（前端临近过期静默换新，活跃用户长期免登录）
 
 
 # ── 密码 ──

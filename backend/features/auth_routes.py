@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from auth import create_access_token, hash_password, verify_password
 from database import get_db
-from deps import _client_ip, generate_invite_code
+from deps import _client_ip, generate_invite_code, get_current_user_obj
 from models import InviteCode, User
 from ratelimit import login_ip, login_user, register_ip
 from schemas import LoginRequest, RegisterRequest, TokenResponse, UserResponse
@@ -137,4 +137,16 @@ def login(req: LoginRequest, request: Request, db: Session = Depends(get_db)):
     return TokenResponse(
         access_token=token,
         user=UserResponse.model_validate(user),
+    )
+
+
+@router.post("/api/refresh", response_model=TokenResponse, tags=["认证"])
+def refresh(current_user: User = Depends(get_current_user_obj)):
+    """滑动续期：仍有效的 token 换发新 token（前端在临近过期时静默调用，活跃用户长期免登录）"""
+    token = create_access_token(
+        {"sub": str(current_user.id), "username": current_user.username, "ver": current_user.token_version}
+    )
+    return TokenResponse(
+        access_token=token,
+        user=UserResponse.model_validate(current_user),
     )
