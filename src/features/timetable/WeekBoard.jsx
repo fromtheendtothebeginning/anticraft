@@ -113,13 +113,36 @@ export default function WeekBoard({ timetable, week, today, now, showTimes, onPi
           )
         }))}
         {events.map(ev => {
-          const aS = minutesToSub(minutesOf(ev.start))
-          const aE = minutesToSub(minutesOf(ev.end), true)
-          // 落在节次空隙（午休等）的日程两端会收敛到同一份，给最小可见高度而不是丢弃；
-          // 最短 5 份（约半节）保证「课名 + 时间」两行都读得出来
-          const aEnd = Math.max(aE, aS + 5)
-          const span = Math.max(5, subRow(aEnd) - subRow(aS) + 1)
           const isExam = ev.kind === 'exam'
+          let top = null
+          let span = null
+          if (isExam) {
+            // 考试卡与课程同款对齐：按覆盖到的节次定位（起止对齐节次边界时与课程逐像素一致；
+            // 份数定位会把恰在节次边界的起止算进相邻格，造成 3-4 节考试的错位）
+            const s = minutesOf(ev.start)
+            const e = minutesOf(ev.end)
+            let first = -1
+            let last = -1
+            SLOT_TIMES.forEach(([st, en], i) => {
+              if (s < minutesOf(en) && e > minutesOf(st)) {
+                if (first < 0) first = i
+                last = i
+              }
+            })
+            if (first >= 0) {
+              top = subRow(first * SUBS_PER_SLOT)
+              span = subRow((last + 1) * SUBS_PER_SLOT - 1) - top + 1
+            }
+          }
+          if (top == null) {
+            const aS = minutesToSub(minutesOf(ev.start))
+            const aE = minutesToSub(minutesOf(ev.end), true)
+            // 落在节次空隙（午休等）的日程两端会收敛到同一份，给最小可见高度而不是丢弃；
+            // 最短 5 份（约半节）保证「课名 + 时间」两行都读得出来
+            const aEnd = Math.max(aE, aS + 5)
+            top = subRow(aS)
+            span = Math.max(5, subRow(aEnd) - top + 1)
+          }
           return (
             WEEKDAY_SHORT.map((_, di) => {
               if (!eventOnDay(ev, colISOs[di], di)) return null
@@ -135,7 +158,7 @@ export default function WeekBoard({ timetable, week, today, now, showTimes, onPi
                     className={`tt-course${eventPassed(ev, now) ? ' past' : ''}`}
                     data-hue={courseHue(ev.name)}
                     title={[ev.name, `${ev.start}–${ev.end}`, ev.place, ev.seat ? `${t('timetable.examSeat')} ${ev.seat}` : ''].filter(Boolean).join(' · ')}
-                    style={{ gridColumn: di + 2, gridRow: `${subRow(aS)} / span ${span}` }}
+                    style={{ gridColumn: di + 2, gridRow: `${top} / span ${span}` }}
                     onClick={() => onPickEvent(ev)}
                   >
                     <span className="tt-course-time">{t('timetable.examTag')} {ev.start}</span>
@@ -152,7 +175,7 @@ export default function WeekBoard({ timetable, week, today, now, showTimes, onPi
                   key={ev.id}
                   className="tt-event"
                   title={[ev.name, ev.start && `${ev.start}–${ev.end}`, ev.place].filter(Boolean).join(' · ')}
-                  style={{ gridColumn: di + 2, gridRow: `${subRow(aS)} / span ${span}` }}
+                  style={{ gridColumn: di + 2, gridRow: `${top} / span ${span}` }}
                   onClick={() => onPickEvent(ev)}
                 >
                   <span className="tt-event-name">{ev.name}</span>
