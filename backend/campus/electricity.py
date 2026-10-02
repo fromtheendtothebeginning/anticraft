@@ -204,11 +204,11 @@ class ElectricityClient:
             raise ElectricityError("缺少姓名，请在「我的 → 校园服务」填写")
         pwd = sm4_encrypt(pay_password)
         body = {"custname": real_name, "pwd": pwd, "stuempno": student_id}
-        log.info(f"[electricity] login sid={student_id[:2]}****")
+        log.info(f"[electricity] login sid={student_id} name={real_name}")
         try:
             resp = self._session.post(self.LOGIN_URL, json=body, timeout=self.TIMEOUT)
         except requests.exceptions.RequestException as e:
-            raise ElectricityError("校付宝系统响应超时，请稍后重试")
+            raise ElectricityError(f"校付宝系统响应超时：{e}")
         try:
             obj = resp.json()
         except ValueError:
@@ -244,7 +244,7 @@ class ElectricityClient:
         try:
             resp = s.post(url, json=body, timeout=self.TIMEOUT, headers=headers)
         except requests.exceptions.RequestException as e:
-            raise ElectricityError("校园卡系统响应超时，请稍后重试")
+            raise ElectricityError(f"校园卡系统响应超时：{e}")
         if resp.status_code == 403:
             # 令牌过期：重登续期后重试一次
             self._token = None
@@ -253,7 +253,7 @@ class ElectricityClient:
             try:
                 resp = s.post(url, json=body, timeout=self.TIMEOUT, headers=headers)
             except requests.exceptions.RequestException as e:
-                raise ElectricityError("校园卡系统响应超时，请稍后重试")
+                raise ElectricityError(f"校园卡系统响应超时：{e}")
         try:
             obj = resp.json()
         except ValueError:

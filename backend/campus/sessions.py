@@ -5,6 +5,18 @@ import threading
 import time
 
 
+def _deterministic_ports(user_id, cfg):
+    """根据 user_id 确定端口号，每用户固定（10000-18000）"""
+    base = cfg.port_low
+    rng = cfg.port_high - cfg.port_low
+    socks = base + ((user_id * 2) % rng) + 1
+    http = socks + 1
+    if http > cfg.port_high:
+        http = base + 1
+        socks = base
+    return socks, http
+
+
 class Session:
     def __init__(self, user_id, student_id, password, socks_port, http_port, proxy_host="127.0.0.1"):
         self.user_id = user_id
@@ -54,10 +66,10 @@ class SessionManager:
             old = self.sessions.get(user_id)
             if old:
                 self._drop_locked(user_id)
-            # 每次连接随机分配空闲端口（防按 user_id 推测端口定向滥用）；
-            # 共享会话池等调用方也可显式传入 allocate_ports() 分配的端口
+            # 每用户固定端口（bridge 模式下 Docker 端口映射到不同外部端口）；
+            # 共享会话池等调用方也可显式传入 allocate_ports() 分配的随机空闲端口
             if ports is None:
-                ports = self.docker.allocate_ports()
+                ports = _deterministic_ports(user_id, self.cfg)
             socks_port, http_port = ports
             self.sessions[user_id] = Session(user_id, student_id, password, socks_port, http_port, proxy_host=self.cfg.proxy_host)
         threading.Thread(target=self._run, args=(user_id,), daemon=True).start()

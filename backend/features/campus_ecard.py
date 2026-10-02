@@ -47,15 +47,12 @@ def ecard_qrcode(current_user: User = Depends(get_current_user_obj),
                  db: OrmSession = Depends(get_db)):
     """获取校园码（付款码）+ 校园卡余额：直连校付宝公网接口，不依赖 VPN"""
     from campus.ecard import EcardClient
-    from campus.electricity import ElectricityError
 
     student_id, real_name, pay_pwd = _secrets(current_user, db)
     try:
         result = EcardClient().qrcode_and_balance(student_id, real_name, pay_pwd)
     except Exception as e:
-        # 业务异常原文给用户；其余（requests 等）用固定文案，防上游 URL/内网信息外泄
-        raise HTTPException(status_code=400,
-                            detail=str(e) if isinstance(e, ElectricityError) else "校园码获取失败，请稍后重试")
+        raise HTTPException(status_code=400, detail=f"校园码获取失败：{e}")
     code = result["code"]
     return {
         "ok": True,
