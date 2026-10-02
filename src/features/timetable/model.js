@@ -22,10 +22,74 @@ export function courseHue(name) {
 
 const DAY_MS = 86400000
 // 设备级存储：不做按用户分 key——应用启动后 user 对象会被异步改写，挂载时读到的 id 不可靠
+// 多学期结构：{ version, nj, active, semesters: { [key]: timetable }, updatedAt }
+// key = '学年-学期码'（正方学期码：3=第一学期/12=第二学期/16=短学期，如 2025-3 = 大一上）
 const STORAGE_KEY = 'campus_timetable'
 
 export function emptyTimetable() {
   return { version: 1, name: '', startDate: '', weekCount: DEFAULT_WEEK_COUNT, courses: [], events: [], adjustments: [] }
+}
+
+// 学期起点日期 → 学期 key：9-12 月=当年第一学期(3)，1 月=上一学年第一学期，2-6 月=第二学期(12)，7-8 月=短学期(16)
+export function semesterKeyOf(startDate) {
+  const d = new Date(`${startDate}T00:00:00`)
+  if (!startDate || Number.isNaN(d.getTime())) return 'default'
+  const y = d.getFullYear()
+  const m = d.getMonth() + 1
+  if (m >= 9) return `${y}-3`
+  if (m === 1) return `${y - 1}-3`
+  if (m <= 6) return `${y - 1}-12`
+  return `${y - 1}-16`
+}
+
+const TERM_NAMES = ['大一上', '大一下', '大二上', '大二下', '大三上', '大三下', '大四上', '大四下']
+
+// 学期 key → 展示名：已知年级（入学学年）给「大一上」式短名，否则给学年全名
+export function semesterLabel(key, nj) {
+  const m = /^(\d{4})-(3|12|16)$/.exec(key || '')
+  if (!m) return key === 'default' ? '旧课表' : (key || '')
+  const xnm = Number(m[1])
+  if (m[2] === '16') return `${xnm}-${xnm + 1} 短学期`
+  const n = parseInt(nj, 10)
+  if (n) {
+    const term = (xnm - n) * 2 + (m[2] === '12' ? 2 : 1)
+    if (term >= 1 && term <= 8) return TERM_NAMES[term - 1]
+  }
+  return `${xnm}-${xnm + 1} ${m[2] === '3' ? '第一学期' : '第二学期'}`
+}
+
+// 任意历史/新版数据 → 标准多学期结构（旧版单课表按学期起点归入对应学期）；无有效数据返回 null
+export function normalizeStore(d) {
+  if (!d || typeof d !== 'object') return null
+  if (d.semesters && typeof d.semesters === 'object') {
+    const semesters = {}
+    for (const [k, v] of Object.entries(d.semesters)) {
+      if (v && Array.isArray(v.courses)) semesters[k] = { ...emptyTimetable(), ...v }
+    }
+    if (!Object.keys(semesters).length) return null
+    const active = semesters[d.active] ? d.active : Object.keys(semesters)[0]
+    return { version: 1, nj: d.nj || '', active, semesters, updatedAt: d.updatedAt || 0 }
+  }
+  if (Array.isArray(d.courses)) {
+    const key = semesterKeyOf(d.startDate)
+    return {
+      version: 1, nj: d.nj || '', active: key, updatedAt: d.updatedAt || 0,
+      semesters: { [key]: { ...emptyTimetable(), ...d } },
+    }
+  }
+  return null
+}
+
+export function loadStore() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return null
+    return normalizeStore(JSON.parse(raw))
+  } catch { return null }
+}
+
+export function saveStore(store) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(store)) } catch { /* 忽略 */ }
 }
 
 // 一天三个时段：第 1-4 节上午 / 5-8 下午 / 9-11 晚上（slot 0 起：0-3 / 4-7 / 8-10）
@@ -48,15 +112,6 @@ export function minutesOf(hm) {
 export const SUBS_PER_SLOT = 10
 
 // 时间（分钟）→ 份数下标（第 k 节第 f 份 = k*10 + f；isEnd 时向上取整，结束边界才算到线）
-export function minutesToSub(min, isEnd = false) {
-  const first = SLOT_TIMES.findIndex(([st]) => minutesOf(st) > min)
-  const k = (first === -1 ? SLOT_COUNT : first) - 1
-  if (k < 0) return 0
-  const frac = ((min - minutesOf(SLOT_TIMES[k][0])) / 45) * SUBS_PER_SLOT
-  const f = Math.max(0, Math.min(SUBS_PER_SLOT, isEnd ? Math.ceil(frac) : Math.floor(frac)))
-  return k * SUBS_PER_SLOT + f
-}
-
 export function fmtMin(min) {
   const p = (n) => String(n).padStart(2, '0')
   return `${p(Math.floor(min / 60))}:${p(min % 60)}`
@@ -65,6 +120,15 @@ export function fmtMin(min) {
 export function dateISOOf(d) {
   const p = (n) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+
+export function minutesToSub(min, isEnd = false) {
+  const first = SLOT_TIMES.findIndex(([st]) => minutesOf(st) > min)
+  const k = (first === -1 ? SLOT_COUNT : first) - 1
+  if (k < 0) return 0
+  const frac = ((min - minutesOf(SLOT_TIMES[k][0])) / 45) * SUBS_PER_SLOT
+  const f = Math.max(0, Math.min(SUBS_PER_SLOT, isEnd ? Math.ceil(frac) : Math.floor(frac)))
+  return k * SUBS_PER_SLOT + f
 }
 
 // 日程是否落在某个课表日（week+dayIndex 对应 dateISO）：

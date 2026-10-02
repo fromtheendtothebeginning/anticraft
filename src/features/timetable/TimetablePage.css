@@ -960,6 +960,13 @@
   gap: 6px;
 }
 
+/* 工具栏学期切换器：与按钮组同高对齐 */
+.tt-semdd .category-btn {
+  height: 32px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
 /* 导入双按钮：课程 / 考试并排 */
 .tt-import-btns {
   display: flex;

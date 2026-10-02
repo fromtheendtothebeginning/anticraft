@@ -1,6 +1,5 @@
-# 课程表云端存储 —— 每用户一份 JSON；前端以数据内的 updatedAt 做最后写入胜合并
+# 课程表云端存储 —— 每用户一份 JSON（多学期结构），前端以数据内的 updatedAt 做最后写入胜合并
 
-import datetime
 import json
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -14,7 +13,7 @@ from models import User, UserTimetable
 
 router = APIRouter()
 
-MAX_DATA_BYTES = 128 * 1024  # 课程表数据大小上限，防滥用
+MAX_DATA_BYTES = 512 * 1024  # 多学期课表（每学期含原始周数据）大小上限，防滥用
 
 
 class TimetablePayload(BaseModel):
@@ -127,55 +126,20 @@ def timetable_import(req: TtImportRequest, current_user: User = Depends(get_curr
 
 # ============================================================
 # 考试安排导入：教务系统考试查询（kwgl N358105），前端转为日程事件
+# 学期由前端按所选学期精确指定（正方学期码：第一学期 3 / 第二学期 12）
 # ============================================================
 
 class TtExamImportRequest(BaseModel):
+    xnm: str = ""
+    xqm: str = ""
     captcha: str = ""  # 手动输入的教务验证码（完成登录用）
 
 
-def _exam_semester_candidates():
-    """从当前学期往前数 4 个学期的 (xnm, xqm) 候选。
-
-    考试安排通常只有最近学期有数据（新学期考试未发布时查询返回空），
-    与学校教务页面默认展示「最近有数据的学期」一致，自动回落查找。
-    xqm 用正方桌面端学期码：3=秋季学期(9月~次年1月) / 12=春季学期(2~6月)。
-    """
-    today = datetime.date.today()
-    y, m = today.year, today.month
-    xnm = y if m >= 9 else y - 1
-    xqm = 3 if (m >= 9 or m <= 1) else 12
-    out = []
-    for _ in range(4):
-        out.append((str(xnm), str(xqm)))
-        if xqm == 3:
-            xnm, xqm = xnm - 1, 12  # 秋季 → 上一学年春季
-        else:
-            xqm = 3                 # 春季 → 同学年秋季
-    return out
-
-
-def _import_exams(client):
-    """逐个学期候选查询考试，返回第一个有数据的结果（全空则返回 0 场）。"""
-    candidates = _exam_semester_candidates()
-    last_err = None
-    queried = False
-    for cxnm, cxqm in candidates:
-        try:
-            exams = client.fetch_exams(xnm=cxnm, xqm=cxqm)
-        except DektError as e:
-            if client.jwxt_session is None:
-                raise  # 登录失效：换学期也没用，交回前端重登
-            last_err = str(e)
-            _log(f"kscx {cxnm}/{cxqm} query failed: {last_err[:120]}")
-            continue
-        queried = True
-        if exams:
-            return {"ok": True, "exams": exams, "xnm": cxnm, "xqm": cxqm}
-        _log(f"kscx {cxnm}/{cxqm}: 0 exams, try previous semester")
-    if not queried and last_err is not None:
-        raise HTTPException(status_code=400, detail=last_err)
-    first = candidates[0]
-    return {"ok": True, "exams": [], "xnm": first[0], "xqm": first[1]}
+def _import_exams(client, xnm, xqm):
+    try:
+        return {"ok": True, "exams": client.fetch_exams(xnm=xnm, xqm=xqm)}
+    except DektError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/api/timetable/exams/import", tags=["课程表"])
@@ -192,13 +156,13 @@ def timetable_exams_import(req: TtExamImportRequest, current_user: User = Depend
             client.complete_jwxt_login(sess.student_id, req.captcha.strip())
         except DektError as e:
             raise HTTPException(status_code=400, detail=str(e))
-        return _import_exams(client)
+        return _import_exams(client, req.xnm, req.xqm)
 
     if client.jwxt_session is None:
         prepare = lambda: client.prepare_jwxt_login(sess.student_id, sess.password)
         if cred.auto_captcha:
             result, pending = _auto_captcha_jwxt(client, sess, current_user.id, db, prepare,
-                                                 lambda: _import_exams(client))
+                                                 lambda: _import_exams(client, req.xnm, req.xqm))
             if result is not None:
                 return result
         else:
@@ -206,4 +170,4 @@ def timetable_exams_import(req: TtExamImportRequest, current_user: User = Depend
         if pending is not None:
             return {"need_captcha": True, "captcha_base64": _b64(pending.captcha)}
 
-    return _import_exams(client)
+    return _import_exams(client, req.xnm, req.xqm)
