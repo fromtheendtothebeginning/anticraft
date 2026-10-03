@@ -109,6 +109,9 @@ setup-wsl-portforward.ps1
 # 校园 VPN 心跳（服务器专属运维代码，不入库；开关 CAMPUS_HEARTBEAT=1 只写服务器 .env，本地绝不启用）
 backend/features/campus_heartbeat.py
 
+# 校园服务开放接口文档（具体接口细节不入库；代码 backend/features/campus_open.py 正常入库）
+docs/campus-api.md
+
 # 正式签名（keystore 与口令，绝不入库）
 android/keystore.properties
 android/keystore/
