@@ -399,3 +399,9 @@ npm run build    # 产物输出到 dist/
 ## 常见问题
 
 见 `warning.md`，记录了 10 类部署和开发中遇到的常见错误及解决方案。
+
+---
+
+## 开源协议
+
+本项目基于 **GPL-3.0-or-later**（GNU General Public License v3.0 或更高版本）发布，完整协议文本见 [LICENSE](LICENSE)。
