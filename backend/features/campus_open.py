@@ -2,8 +2,8 @@
 # 鉴权与站内完全同源：anticraft 账号 POST /api/login 换 30 天 JWT（Bearer，/api/refresh 滑动续期），
 # 校园数据一律取自该账号在「我的 → 校园服务」配置的凭据（campus_creds），API 本身不经手校园密码。
 # 相比站内 /api/campus/* 的 App 友好差异：VPN 连接在请求内等待 ≤40s（未就绪回 202 让客户端稍后
-# 重试），学工/教务验证码用 AI 自动识别（需账号开启 auto_captcha + 配置识图模型），绝不返回
-# need_captcha 手动验证码交互。
+# 重试），学工/教务验证码先 AI 自动识别（需账号开启 auto_captcha + 配置识图模型），走不通时
+# 返回 need_captcha 让 App 弹手动输入框（提交 /api/campus-open/captcha，换一张 GET 同路径）。
 # 复用 campus_service 的会话/客户端单例，会话 key=user_id 与站内完全一致（App 与网页共享同一条隧道）。
 # 学校侧约束：同一出口 IP 同时只有一条 VPN 隧道，隧道类接口多账号并发会互踢；
 # 校园码/电费走校付宝公网直连，不占隧道。
@@ -38,6 +38,22 @@ RETRY_AFTER = 5                  # vpn_connecting（202）时建议客户端的�
 
 class _Connecting(Exception):
     """VPN 隧道在等待窗口内未就绪（连接是异步的）：各数据接口转成 202 让客户端稍后重试"""
+
+
+def _need_captcha_payload(e):
+    """need_captcha 的统一应答：取一张新验证码交回客户端弹手动输入框（与网站站内流程同款）"""
+    return JSONResponse(status_code=200,
+                        content={"need_captcha": True, "mode": e.mode,
+                                 "captcha_base64": cs._b64(e.captcha)})
+
+
+class _NeedCaptcha(Exception):
+    """登录需要验证码但无法自动识别（未开 AI 识码 / 未配识图模型 / 识图失败）：
+    各数据接口转成 need_captcha 让客户端手动输入，提交走 POST /api/campus-open/captcha"""
+
+    def __init__(self, mode, captcha):
+        self.mode = mode
+        self.captcha = captcha  # 验证码图片 bytes
 
 
 def _connecting():
@@ -75,42 +91,47 @@ def _ensure_connected(m, user_id, sid, vpn_pwd):
 
 
 def _auto_login(client, sess, cred, user_id, db, mode):
-    """确保学工(CAS)/教务已登录：验证码一律 AI 识别（用户自己的识图模型），无人工兜底。
+    """确保学工(CAS)/教务已登录：先尝试 AI 识码（需账号开启 auto_captcha + 配置识图模型），
+    走不通（未开/未配/识图失败/3 轮识别全错）退回手动——抛 _NeedCaptcha 让客户端弹验证码框，
+    与网站站内 need_captcha 流程一致，不再给死路 400。
 
     mode: "xg"=学工统一身份认证（分数/活动），"jwxt"=教务系统（成绩/课表/考试）。
     """
     if (client.session if mode == "xg" else client.jwxt_session) is not None:
         return client
-    if not cred.auto_captcha:
-        raise HTTPException(
-            status_code=400,
-            detail="该账号未开启 AI 自动识别验证码：请到网站「我的 → 校园服务」开启后重试")
-    vision = cs._resolve_vision_model(user_id, db)
-    if not vision:
-        raise HTTPException(
-            status_code=400,
-            detail="尚未配置识图模型：请到网站「我的 → AI 设置」配置视觉模型后重试")
     prepare = client.prepare_login if mode == "xg" else client.prepare_jwxt_login
     complete = client.complete_login if mode == "xg" else client.complete_jwxt_login
     name = "统一身份认证" if mode == "xg" else "教务系统"
-    for _ in range(3):
-        try:
-            pending = prepare(sess.student_id, sess.password)
-        except DektError as e:
-            raise HTTPException(status_code=400, detail=str(e))
-        if pending is None:
-            return client
-        if not pending.captcha:
-            raise HTTPException(status_code=502, detail="登录验证码获取失败，请稍后重试")
-        text = cs._ai_solve_captcha(cs._b64(pending.captcha), vision)
-        if not text:
-            raise HTTPException(status_code=502, detail="验证码识别失败，请稍后重试")
-        try:
-            complete(sess.student_id, text)
-            return client
-        except DektError as e:
-            _log(f"campus-open {name}登录重试: {str(e)[:120]}")
-    raise HTTPException(status_code=502, detail=f"{name}自动登录未成功，请稍后重试")
+    if cred.auto_captcha:
+        vision = cs._resolve_vision_model(user_id, db)
+        if vision:
+            for _ in range(3):
+                try:
+                    pending = prepare(sess.student_id, sess.password)
+                except DektError as e:
+                    raise HTTPException(status_code=400, detail=str(e))
+                if pending is None:
+                    return client
+                if not pending.captcha:
+                    raise HTTPException(status_code=502, detail="登录验证码获取失败，请稍后重试")
+                text = cs._ai_solve_captcha(cs._b64(pending.captcha), vision)
+                if not text:
+                    break  # 识图失败 → 降级手动
+                try:
+                    complete(sess.student_id, text)
+                    return client
+                except DektError as e:
+                    _log(f"campus-open {name}登录重试: {str(e)[:120]}")
+    # 手动兜底：被登录尝试消耗过的验证码不能退回，取一张全新的交回客户端
+    try:
+        pending = prepare(sess.student_id, sess.password)
+    except DektError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if pending is None:
+        return client
+    if not pending.captcha:
+        raise HTTPException(status_code=502, detail="登录验证码获取失败，请稍后重试")
+    raise _NeedCaptcha(mode, pending.captcha)
 
 
 def _tunnel_client(current_user, db, mode):
@@ -124,6 +145,62 @@ def _tunnel_client(current_user, db, mode):
     sess = _ensure_connected(m, current_user.id, cred.student_id, vpn_pwd)
     client = m["dekt"].get(current_user.id, sess)
     return _auto_login(client, sess, cred, current_user.id, db, mode), cred
+
+
+def _manual_client(current_user, db, mode):
+    """验证码提交/换一张用的前奏：确保隧道与客户端，但不触发 _auto_login（否则又弹 need_captcha）。"""
+    if mode not in ("xg", "jwxt"):
+        raise HTTPException(status_code=400, detail="mode 须为 xg（统一身份认证）或 jwxt（教务系统）")
+    m = cs._get_managers()
+    if "error" in m:
+        raise HTTPException(status_code=503, detail="校园基础设施不可用：" + m["error"])
+    cred = cs._load_cred(current_user, db)
+    vpn_pwd = cs._decrypt_or_400(cred.vpn_password_enc)
+    sess = _ensure_connected(m, current_user.id, cred.student_id, vpn_pwd)
+    return m["dekt"].get(current_user.id, sess), sess
+
+
+class OpenCaptchaRequest(BaseModel):
+    mode: str = Field(..., description="xg=统一身份认证，jwxt=教务系统")
+    captcha: str = Field(..., min_length=1, max_length=10, description="用户输入的验证码")
+
+
+@router.post("/api/campus-open/captcha", tags=["校园开放接口"])
+def open_captcha_submit(req: OpenCaptchaRequest,
+                        current_user: User = Depends(get_current_user_obj),
+                        db: OrmSession = Depends(get_db)):
+    """提交手动验证码完成登录（配合数据接口的 need_captcha 响应）。
+    成功后重试原数据请求即可；验证码错误回 400 detail（含「验证码」→ 换一张重输，其他直接提示）。"""
+    client, _sess = _manual_client(current_user, db, req.mode)
+    name = "统一身份认证" if req.mode == "xg" else "教务系统"
+    try:
+        if req.mode == "jwxt":
+            client.complete_jwxt_login(client.student_id, req.captcha.strip())
+        else:
+            client.complete_login(client.student_id, req.captcha.strip())
+    except DektError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    _log(f"campus-open {name} 手动验证码登录成功 user={current_user.id}")
+    return {"ok": True}
+
+
+@router.get("/api/campus-open/captcha", tags=["校园开放接口"])
+def open_captcha_refresh(mode: str = "xg",
+                         current_user: User = Depends(get_current_user_obj),
+                         db: OrmSession = Depends(get_db)):
+    """换一张验证码（need_captcha 之后用户点「换一张」）：重新 prepare 取新验证码图。
+    会话期间已被其他途径登录成功时返回 logged_in=true，客户端直接重试原请求。"""
+    client, sess = _manual_client(current_user, db, mode)
+    prepare = client.prepare_jwxt_login if mode == "jwxt" else client.prepare_login
+    try:
+        pending = prepare(sess.student_id, sess.password)
+    except DektError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if pending is None:
+        return {"ok": True, "logged_in": True}
+    if not pending.captcha:
+        raise HTTPException(status_code=502, detail="登录验证码获取失败，请稍后重试")
+    return {"ok": True, "logged_in": False, "captcha_base64": cs._b64(pending.captcha)}
 
 
 # ============================================================
@@ -175,6 +252,8 @@ def open_score(current_user: User = Depends(get_current_user_obj), db: OrmSessio
         return {"ok": True, "data": client.fetch_score(cred.student_id)}
     except _Connecting:
         return _connecting()
+    except _NeedCaptcha as e:
+        return _need_captcha_payload(e)
     except HTTPException:
         raise
     except Exception as e:
@@ -192,6 +271,8 @@ def open_grades(request: Request, xnm: str = "", xqm: str = "",
         return {"ok": True, "data": client.fetch_grades(cred.student_id, xnm=xnm, xqm=xqm)}
     except _Connecting:
         return _connecting()
+    except _NeedCaptcha as e:
+        return _need_captcha_payload(e)
     except HTTPException:
         raise
     except Exception as e:
@@ -206,6 +287,8 @@ def open_activities(current_user: User = Depends(get_current_user_obj), db: OrmS
         return {"ok": True, "data": act.activities_payload(client)}
     except _Connecting:
         return _connecting()
+    except _NeedCaptcha as e:
+        return _need_captcha_payload(e)
     except HTTPException:
         raise
     except Exception as e:
@@ -221,6 +304,8 @@ def open_activity_detail(aid: str, current_user: User = Depends(get_current_user
         data = client.fetch_activity_detail(aid)
     except _Connecting:
         return _connecting()
+    except _NeedCaptcha as e:
+        return _need_captcha_payload(e)
     except HTTPException:
         raise
     except Exception as e:
@@ -246,6 +331,8 @@ def open_timetable_week(req: OpenWeekRequest, current_user: User = Depends(get_c
         data = client.fetch_kbcx(cred.student_id, xnm=req.xnm, xqm=req.xqm, zs=req.zs)
     except _Connecting:
         return _connecting()
+    except _NeedCaptcha as e:
+        return _need_captcha_payload(e)
     except HTTPException:
         raise
     except Exception as e:
@@ -267,6 +354,8 @@ def open_timetable_exams(req: OpenExamRequest, current_user: User = Depends(get_
         return {"ok": True, "exams": client.fetch_exams(xnm=req.xnm, xqm=req.xqm)}
     except _Connecting:
         return _connecting()
+    except _NeedCaptcha as e:
+        return _need_captcha_payload(e)
     except HTTPException:
         raise
     except Exception as e:
