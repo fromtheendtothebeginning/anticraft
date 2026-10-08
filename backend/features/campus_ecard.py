@@ -32,11 +32,36 @@ def _secrets(current_user, db):
 
 
 def _qr_png_base64(text):
-    """码值渲染成二维码 PNG；qrcode 库缺失时返回 None（前端退回显示码值文本）"""
+    """码值渲染成**透明底**二维码 PNG；qrcode / pillow 缺失或渲染失败时返回 None。
+
+    不能用 qrcode 默认输出：默认是白底，且含二维码规范的 quiet zone（静默区），
+    结果就是一块白方块——网页端在白卡片里显示所以看不出来，App 的玻璃卡上很显眼
+    （用户报过「校园码背后有一个白色正方形」）。qrcode 的 PIL 后端固定 RGB、传 alpha
+    进不去，所以这里直接按模块矩阵自己画 RGBA：模块画黑、其余留透明（含静默区），
+    白底交给客户端的白卡提供（顺带就有了扫描所需的静默区）。
+    """
     try:
         import qrcode as _qr
+        from PIL import Image
+
+        qr = _qr.QRCode(
+            version=None,
+            error_correction=_qr.constants.ERROR_CORRECT_M,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(text)
+        qr.make(fit=True)
+        matrix = qr.get_matrix()  # 含 border，True = 深色模块
+        size = len(matrix)
+        box = qr.box_size
+        img = Image.new("RGBA", (size * box, size * box), (0, 0, 0, 0))
+        for y, row in enumerate(matrix):
+            for x, dark in enumerate(row):
+                if dark:
+                    img.paste((0, 0, 0, 255), (x * box, y * box, (x + 1) * box, (y + 1) * box))
         buf = io.BytesIO()
-        _qr.make(text).save(buf, format="PNG")
+        img.save(buf, format="PNG")
         return base64.b64encode(buf.getvalue()).decode()
     except Exception:
         return None

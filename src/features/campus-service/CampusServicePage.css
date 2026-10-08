@@ -496,7 +496,9 @@
   height: 220px;
   border-radius: 12px;
   border: 1px solid var(--border-color);
-  background: var(--bg-primary);
+  /* 码图是透明底二维码（后端 _qr_png_base64 不再画白底，避免玻璃卡上出现白色方块），
+     所以底板必须固定为亮色：深色主题下 --bg-primary 是深色，深模块会糊在一起扫不出来 */
+  background: #fff;
   object-fit: contain;
 }
 
