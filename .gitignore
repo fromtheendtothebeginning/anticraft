@@ -86,6 +86,9 @@ opencode.json
 # 图文转 LaTeX 会话文件（用户上传的临时文件，运行时生成）
 backend/img2latex_files/
 
+# 文件下载分发（管理后台上传的文件，运行时生成；元数据在 download_files 表）
+backend/download_files/
+
 
 # Android 壳工程（android/）：只提交源码与 Gradle wrapper，构建产物/机器相关文件不入库
 android/.gradle/

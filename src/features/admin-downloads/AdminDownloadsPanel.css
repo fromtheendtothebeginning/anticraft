@@ -1,0 +1,312 @@
+/* ============================================
+   文件下载面板（AdminDownloadsPanel，adl- 前缀，「管理后台 → 文件下载」tab）
+   沿用站点既有视觉语言：卡片底 + 细描边 + 圆角 + 蓝色强调
+   ============================================ */
+
+.adl-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.adl-head {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.adl-head h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text-primary);
+}
+
+.adl-sub {
+  margin: 0;
+  max-width: 68ch;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+
+/* ── 上传表单：选文件 + 备注 + 按钮 ── */
+.adl-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 22px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+}
+
+.adl-pick {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  cursor: pointer;
+}
+
+.adl-pick > input[type='file'] {
+  display: none;
+}
+
+.adl-pick-btn {
+  padding: 8px 16px;
+  border: 1px solid var(--accent-1-border);
+  border-radius: var(--radius-sm);
+  background: var(--accent-1-soft);
+  color: var(--accent-1);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+  transition: background-color var(--t) var(--t-ease);
+}
+
+.adl-pick:hover .adl-pick-btn {
+  background: var(--accent-1-soft-strong);
+}
+
+.adl-pick-name {
+  min-width: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  word-break: break-all;
+}
+
+.adl-pick-name.is-empty {
+  color: var(--text-muted);
+}
+
+.adl-note-input {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.adl-note-input:focus {
+  outline: none;
+  border-color: var(--accent-1);
+  background: var(--bg-card);
+}
+
+.adl-note-input::placeholder {
+  color: var(--text-muted);
+}
+
+.adl-form > .action-btn {
+  align-self: flex-start;
+}
+
+.adl-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--text-muted);
+}
+
+.adl-err {
+  padding: 14px 16px;
+  border: 1px solid var(--danger-border);
+  border-radius: 10px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.adl-err-ops {
+  margin-top: 12px;
+}
+
+.adl-loading {
+  padding: 8px 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.adl-empty {
+  padding: 24px 20px;
+  background: var(--bg-card);
+  border: 1px dashed var(--border-color);
+  border-radius: 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* ── 文件表格 ── */
+.adl-table {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  overflow: hidden;
+  overflow-x: auto;
+}
+
+.adl-row {
+  display: grid;
+  grid-template-columns: 2fr 76px 76px 132px 2.1fr;
+  gap: 14px;
+  align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 13px;
+  min-width: 860px;
+  transition: background-color var(--t) var(--t-ease);
+}
+
+.adl-row:last-child {
+  border-bottom: 0;
+}
+
+.adl-row:hover {
+  background: var(--accent-1-soft);
+}
+
+.adl-row-head {
+  padding: 12px 16px;
+  background: var(--bg-elevated);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.adl-row-head:hover {
+  background: var(--bg-elevated);
+}
+
+.adl-cell-file {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.adl-cell-file strong {
+  font-weight: 600;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.adl-note {
+  font-size: 12px;
+  font-style: normal;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.adl-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11.5px;
+  font-style: normal;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  word-break: break-all;
+}
+
+.adl-num {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.adl-cell-time {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.adl-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ── 弹窗内表单 ── */
+.adl-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.adl-field:last-child {
+  margin-bottom: 0;
+}
+
+.adl-field > label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.adl-field > input[type='text'] {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.adl-field > input[type='text']:focus {
+  outline: none;
+  border-color: var(--accent-1);
+  background: var(--bg-card);
+}
+
+.adl-field > input[type='file'] {
+  font-family: inherit;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.adl-modal-hint {
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--text-muted);
+}
+
+.adl-modal-hint:last-child {
+  margin: 0;
+}
+
+.adl-link-box {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.adl-link-input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.adl-link-input:focus {
+  outline: none;
+  border-color: var(--accent-1);
+}

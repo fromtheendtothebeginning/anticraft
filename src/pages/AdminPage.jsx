@@ -6,6 +6,7 @@ import CategoryDropdown from '../components/CategoryDropdown'
 import { CONTACT_ICON_OPTIONS, ContactIcon } from '../components/Icons'
 import { BLOG_CATEGORIES as CATEGORIES } from '../constants'
 import BindAppsPanel from '../features/account-binding/BindAppsPanel'
+import AdminDownloadsPanel from '../features/admin-downloads/AdminDownloadsPanel'
 import { t } from '../i18n'
 import { apiFetch } from '../utils/api'
 import { fmtDateTimeMinute } from '../utils/format'
@@ -460,6 +461,7 @@ function AdminPage() {
           <button className={`admin-tab ${tab === 'settings' ? 'active' : ''}`} onClick={() => setTab('settings')}>{t('admin.tabs.settings')}</button>
           <button className={`admin-tab ${tab === 'leetcode' ? 'active' : ''}`} onClick={() => setTab('leetcode')}>{t('admin.tabs.leetcode')}</button>
           <button className={`admin-tab ${tab === 'bindApps' ? 'active' : ''}`} onClick={() => setTab('bindApps')}>{t('admin.tabs.bindApps')}</button>
+          <button className={`admin-tab ${tab === 'downloads' ? 'active' : ''}`} onClick={() => setTab('downloads')}>{t('admin.tabs.downloads')}</button>
         </div>
 
         {error && <div className="admin-error">{error}</div>}
@@ -947,6 +949,9 @@ function AdminPage() {
 
         {/* 绑定应用（第三方项目绑定白名单） */}
         {tab === 'bindApps' && <BindAppsPanel />}
+
+        {/* 文件下载（上传文件生成公开下载链接） */}
+        {tab === 'downloads' && <AdminDownloadsPanel />}
       </div>
 
       <Modal

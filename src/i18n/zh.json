@@ -583,7 +583,8 @@
       "links": "友情链接",
       "settings": "站点设置",
       "leetcode": "LeetCode 调试",
-      "bindApps": "绑定应用"
+      "bindApps": "绑定应用",
+      "downloads": "文件下载"
     },
     "users": {
       "all": "所有用户（{count}）",
@@ -1353,6 +1354,51 @@
       "copy": "复制",
       "copied": "已复制",
       "docHint": "对接流程与接口说明见仓库文档 docs/account-binding-api.md。"
+    }
+  },
+  "adminDownloads": {
+    "title": "文件下载",
+    "subtitle": "上传文件到服务器生成公开下载链接；链接无需登录即可访问，可替换文件内容或删除。",
+    "pickFile": "选择文件",
+    "noFile": "未选择文件",
+    "notePlaceholder": "备注（可选，例如用途说明）",
+    "upload": "上传并生成链接",
+    "uploading": "上传中...",
+    "hint": "单个文件上限 {size}MB；链接不设有效期，删除后立即失效。",
+    "loading": "加载中...",
+    "loadFailed": "加载失败",
+    "retry": "重试",
+    "empty": "还没有上传任何文件。",
+    "colFile": "文件",
+    "colSize": "大小",
+    "colDownloads": "下载次数",
+    "colUploaded": "上传",
+    "colActions": "操作",
+    "copy": "复制链接",
+    "copied": "已复制",
+    "edit": "编辑",
+    "delete": "删除",
+    "save": "保存",
+    "saving": "保存中...",
+    "close": "关闭",
+    "createdTitle": "下载链接已生成",
+    "createdHint": "复制下面的链接发给任何人即可下载（无需登录）。",
+    "openLink": "在新标签页打开",
+    "editTitle": "编辑文件",
+    "editName": "展示文件名",
+    "editNote": "备注",
+    "replaceFile": "替换文件（不选则只改名称/备注）",
+    "replaceHint": "选择新文件会替换服务器上的内容，下载链接保持不变。",
+    "deleteTitle": "删除文件",
+    "deleteConfirm": "删除「{name}」？服务器上的文件会一并清除，原下载链接立即失效。",
+    "err": {
+      "pickFile": "请先选择文件",
+      "tooLarge": "文件超过 {size}MB 上限",
+      "nameRequired": "文件名不能为空",
+      "uploadFailed": "上传失败：{error}",
+      "saveFailed": "保存失败：{error}",
+      "deleteFailed": "删除失败：{error}",
+      "network": "网络错误"
     }
   }
 }
