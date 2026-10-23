@@ -134,6 +134,21 @@ class SessionManager:
         with self._lock:
             self._drop_locked(user_id)
 
+    def mark_broken(self, user_id, reason):
+        """隧道看着是好的、实际连不上校园主机时，由调用方通知一次。
+
+        与 watchdog 的判据不同：watchdog 只看容器在不在、tun0 有没有（`has_tun`），
+        路由齐但流量不通（被同账号踢掉、路由表残留）它看不出来——2026-10-10 成绩/课表
+        一直 400 就是这种：tun0 646 条路由，`jwxt.sit.edu.cn` 却连不上。
+        这里复用同一套重连（冷却 + 真滑窗限次 + 指数退避），所以不会每次请求都重建容器。
+        返回是否真的触发了重连。
+        """
+        sess = self.get(user_id)
+        if sess is None or sess.status != "connected":
+            return False  # 没有会话 / 正在连 / 已 failed：各有各的路径，别抢
+        self._try_reconnect(sess, user_id, time.time(), reason)
+        return sess.status == "connecting"
+
     def _watchdog(self):
         while True:
             time.sleep(30)

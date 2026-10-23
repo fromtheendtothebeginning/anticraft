@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session as OrmSession
 
-from campus.dekt import DektError
+from campus.dekt import DektError, DektNetworkError
 from campus.ecard import EcardClient
 from database import get_db
 from deps import _log, _mask_sid, get_current_user_obj
@@ -147,6 +147,53 @@ def _tunnel_client(current_user, db, mode):
     return _auto_login(client, sess, cred, current_user.id, db, mode), cred
 
 
+# 「登录态没了」这类错误：清掉登录会话、重登一次就能自愈。
+# 以前这种情况得等隧道容器被重建——成绩 / 课表导入会一直 400，用户只能自己去断开重连。
+_SESSION_LOST_HINTS = ("未登录", "登录态失效", "登录已失效", "会话已过期")
+
+
+def _session_lost(e):
+    msg = str(e)
+    return any(h in msg for h in _SESSION_LOST_HINTS)
+
+
+def _drop_login(client, mode):
+    """丢掉已失效的登录会话：下一次 _tunnel_client 会重新准备登录（走 AI 识码或弹验证码）。"""
+    if mode == "jwxt":
+        client.jwxt_session = None
+        client.jwxt_pending = None
+    else:
+        client.session = None
+        client.pending = None
+
+
+def _tunnel_data(current_user, db, mode, run):
+    """跑一次隧道类查询，顺带做两种自愈。
+
+    * 登录态失效（未登录 / 已失效 / 会话过期）→ 清掉登录会话，重登一次再跑；
+      以前这条路只能等隧道容器重建，成绩 / 课表导入会一直 400。
+    * 连不上校园主机（[DektNetworkError]）→ 隧道看着在（tun0 有路由）但流量不通，
+      通知会话管理器按同一套退避重建隧道，本次回一句可重试的人话；原来会变成
+      一长串 urllib3 文本的 400，客户端也分不清要不要重试。
+    """
+    client, cred = _tunnel_client(current_user, db, mode)
+    try:
+        return run(client, cred)
+    except DektNetworkError as e:
+        name = "教务系统" if mode == "jwxt" else "学工系统"
+        if cs._mgrs()["sessions"].mark_broken(
+                current_user.id, f"{name}连不上，正在重建校园网隧道…"):
+            _log("campus-open 隧道疑似失效，已触发重连")
+        raise HTTPException(status_code=502, detail=str(e))
+    except DektError as e:
+        if not _session_lost(e):
+            raise
+        _log(f"campus-open {mode} 登录态失效，清掉重登一次：{str(e)[:120]}")
+        _drop_login(client, mode)
+        client, cred = _tunnel_client(current_user, db, mode)
+        return run(client, cred)
+
+
 def _manual_client(current_user, db, mode):
     """验证码提交/换一张用的前奏：确保隧道与客户端，但不触发 _auto_login（否则又弹 need_captcha）。"""
     if mode not in ("xg", "jwxt"):
@@ -248,8 +295,8 @@ def open_disconnect(current_user: User = Depends(get_current_user_obj)):
 def open_score(current_user: User = Depends(get_current_user_obj), db: OrmSession = Depends(get_db)):
     """第二课堂达标分数（德智体美劳细分）"""
     try:
-        client, cred = _tunnel_client(current_user, db, "xg")
-        return {"ok": True, "data": client.fetch_score(cred.student_id)}
+        return {"ok": True, "data": _tunnel_data(
+            current_user, db, "xg", lambda c, cr: c.fetch_score(cr.student_id))}
     except _Connecting:
         return _connecting()
     except _NeedCaptcha as e:
@@ -267,8 +314,9 @@ def open_grades(request: Request, xnm: str = "", xqm: str = "",
     """成绩单（含绩点）。xnm=学年（如 2025），xqm=学期码（第一学期 3 / 第二学期 12）；
     都不传=全部学期，并在 data.terms 里返回可选学期列表。"""
     try:
-        client, cred = _tunnel_client(current_user, db, "jwxt")
-        return {"ok": True, "data": client.fetch_grades(cred.student_id, xnm=xnm, xqm=xqm)}
+        return {"ok": True, "data": _tunnel_data(
+            current_user, db, "jwxt",
+            lambda c, cr: c.fetch_grades(cr.student_id, xnm=xnm, xqm=xqm))}
     except _Connecting:
         return _connecting()
     except _NeedCaptcha as e:
@@ -283,8 +331,8 @@ def open_grades(request: Request, xnm: str = "", xqm: str = "",
 def open_activities(current_user: User = Depends(get_current_user_obj), db: OrmSession = Depends(get_db)):
     """第二课堂活动列表（结构化看板视图）"""
     try:
-        client, _cred = _tunnel_client(current_user, db, "xg")
-        return {"ok": True, "data": act.activities_payload(client)}
+        return {"ok": True, "data": _tunnel_data(
+            current_user, db, "xg", lambda c, cr: act.activities_payload(c))}
     except _Connecting:
         return _connecting()
     except _NeedCaptcha as e:
@@ -300,8 +348,8 @@ def open_activity_detail(aid: str, current_user: User = Depends(get_current_user
                          db: OrmSession = Depends(get_db)):
     """单个活动详情（hdms 活动说明全文 + 名额/报名线索）"""
     try:
-        client, _cred = _tunnel_client(current_user, db, "xg")
-        data = client.fetch_activity_detail(aid)
+        data = _tunnel_data(current_user, db, "xg",
+                            lambda c, cr: c.fetch_activity_detail(aid))
     except _Connecting:
         return _connecting()
     except _NeedCaptcha as e:
@@ -327,8 +375,9 @@ def open_timetable_week(req: OpenWeekRequest, current_user: User = Depends(get_c
                         db: OrmSession = Depends(get_db)):
     """课表单周查询（教务移动端接口）：courses + 该周日期安排 + 学期名/年级"""
     try:
-        client, cred = _tunnel_client(current_user, db, "jwxt")
-        data = client.fetch_kbcx(cred.student_id, xnm=req.xnm, xqm=req.xqm, zs=req.zs)
+        data = _tunnel_data(
+            current_user, db, "jwxt",
+            lambda c, cr: c.fetch_kbcx(cr.student_id, xnm=req.xnm, xqm=req.xqm, zs=req.zs))
     except _Connecting:
         return _connecting()
     except _NeedCaptcha as e:
@@ -350,8 +399,9 @@ def open_timetable_exams(req: OpenExamRequest, current_user: User = Depends(get_
                          db: OrmSession = Depends(get_db)):
     """考试安排查询（教务考试查询）：结构化考试列表"""
     try:
-        client, _cred = _tunnel_client(current_user, db, "jwxt")
-        return {"ok": True, "exams": client.fetch_exams(xnm=req.xnm, xqm=req.xqm)}
+        return {"ok": True, "exams": _tunnel_data(
+            current_user, db, "jwxt",
+            lambda c, cr: c.fetch_exams(xnm=req.xnm, xqm=req.xqm))}
     except _Connecting:
         return _connecting()
     except _NeedCaptcha as e:

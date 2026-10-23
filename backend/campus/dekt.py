@@ -33,6 +33,31 @@ class DektError(Exception):
     pass
 
 
+class DektNetworkError(DektError):
+    """连不上校园主机（连接被拒 / 代理错误 / TLS 失败）：与「登录态失效」区分开——
+    前者要重建隧道，后者只要重新登录。上层据此选自愈动作（见 features/campus_open.py）。"""
+
+
+def _net(what, fn):
+    """跑一次校园主机的请求，把 requests 的异常统一成人话。
+
+    原来这些异常会原样冒到接口层，被 `except Exception -> 400` 兜住，客户端拿到的是
+    一长串 urllib3 文本、也分不清要不要重试。分开两档：
+    * 连接层失败 → [DektNetworkError]：隧道看着在（tun0 有路由）但流量不通，
+      上层会让会话管理器按同一套退避重建隧道；
+    * 超时 → 普通 [DektError]：可能只是校内系统慢，不该据此重建隧道。
+    """
+    try:
+        return fn()
+    except requests.exceptions.Timeout as e:
+        raise DektError("%s响应超时，请重试" % what) from e
+    except requests.exceptions.ConnectionError as e:
+        raise DektNetworkError("%s连接失败（校园网隧道可能已失效，正在自动重建）：%s"
+                               % (what, type(e).__name__)) from e
+    except requests.exceptions.RequestException as e:
+        raise DektError("%s请求失败（%s），请重试" % (what, type(e).__name__)) from e
+
+
 class PendingLogin:
     def __init__(self, http, login_url, fields, salt):
         self.http = http
@@ -166,12 +191,12 @@ class DektClient:
                 return self._prepare_direct(s)
             loc = r.headers.get("Location")
             if not loc:
-                cu = s.get(self.current_user, timeout=30)
+                cu = _net("统一身份认证", lambda: s.get(self.current_user, timeout=30))
                 if '"code":0' in cu.text:
                     self.session = s
                     return None
                 return self._prepare_direct(s)
-            r = s.get(loc, timeout=30)
+            r = _net("统一身份认证", lambda: s.get(loc, timeout=30))
             html = r.text
             fields = self._hidden_fields(html)
             salt = self._find_salt(html)
@@ -189,7 +214,7 @@ class DektClient:
     def _prepare_direct(self, s):
         """直连 authserver 登录（service 指向 ecard SSO）"""
         url = self.auth_base + "/login?service=" + requests.utils.quote(self.ecard_cas_service, safe="")
-        r = s.get(url, timeout=30)
+        r = _net("统一身份认证", lambda: s.get(url, timeout=30))
         fields = self._hidden_fields(r.text)
         salt = self._find_salt(r.text)
         fields.setdefault("dllt", "userNamePasswordLogin")
@@ -217,10 +242,11 @@ class DektClient:
             data = {"username": student_id, "password": pwd, "captchaResponse": captcha or ""}
             data.update(pending.fields)
             post_url = pending.login_url.split("?")[0]
-            resp = s.post(post_url, data=data, timeout=30, allow_redirects=True,
-                          headers={"Referer": pending.login_url})
+            resp = _net("统一身份认证", lambda: s.post(
+                post_url, data=data, timeout=30, allow_redirects=True,
+                headers={"Referer": pending.login_url}))
             self.pending = None
-            cu = s.get(self.current_user, timeout=30)
+            cu = _net("统一身份认证", lambda: s.get(self.current_user, timeout=30))
             if '"code":0' not in cu.text:
                 err = ""
                 m = re.search(r'id="msg"[^>]*>(.*?)</(?:span|div)>', resp.text, re.S)
@@ -238,10 +264,12 @@ class DektClient:
             raise DektError("未登录")
         body = {"currentPage": "1", "pageSize": "15", "showCount": "10", "xh": student_id}
         # 不跟随跳转：会话失效时学工 302 到统一认证登录页，跟下去只会拿到那页 HTML
-        resp = self.session.post(self.score_url, data=body, timeout=30, allow_redirects=False, headers={
-            "Content-Type": "application/x-www-form-urlencoded",
-            "Referer": self.xg_base + "/dektxf/xfqktj",
-        })
+        resp = _net("学工系统", lambda: self.session.post(
+            self.score_url, data=body, timeout=30, allow_redirects=False,
+            headers={
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Referer": self.xg_base + "/dektxf/xfqktj",
+            }))
         if resp.status_code in (301, 302, 303, 307, 308):
             self.session = None
             raise DektError("登录态失效，请重新查询")
@@ -300,10 +328,8 @@ class DektClient:
         if not self.session:
             raise DektError("未登录")
         url = self.xg_api + "/hdgl/getHdgcHdList.zf"
-        try:
-            resp = self.session.post(url, json={}, timeout=30, headers=self._xg_headers())
-        except requests.exceptions.RequestException:
-            raise DektError("学工系统响应超时，请重试")
+        resp = _net("学工系统", lambda: self.session.post(
+            url, json={}, timeout=30, headers=self._xg_headers()))
         j = self._parse_response(resp)
         if not isinstance(j, dict) or j.get("code") != 0:
             self.session = None
@@ -325,11 +351,9 @@ class DektClient:
         """获取单个活动详情（含 hdms 活动说明全文），说明写入缓存供列表复用"""
         if not self.session:
             raise DektError("未登录")
-        try:
-            resp = self.session.get(self.xg_api + "/hdgl/details.zf", params={"id": hd_id},
-                                    timeout=30, headers=self._xg_headers())
-        except requests.exceptions.RequestException:
-            raise DektError("学工系统响应超时，请重试")
+        resp = _net("学工系统", lambda: self.session.get(
+            self.xg_api + "/hdgl/details.zf", params={"id": hd_id},
+            timeout=30, headers=self._xg_headers()))
         j = self._parse_response(resp)
         if not isinstance(j, dict) or j.get("code") != 0:
             self.session = None
@@ -347,13 +371,10 @@ class DektClient:
         if not self.session:
             raise DektError("未登录")
         url = self.ecard_qr_url + "?codetype=%s" % codetype
-        try:
-            # 第一次：SSO 握手，建立 ecard 的 JSESSIONID
-            self.session.get(url, timeout=30, allow_redirects=True)
-            # 第二次：获取动态码页面
-            r = self.session.get(url, timeout=30, allow_redirects=True)
-        except requests.exceptions.RequestException:
-            raise DektError("校园卡系统响应超时，请重试")
+        # 第一次：SSO 握手，建立 ecard 的 JSESSIONID
+        _net("校园卡系统", lambda: self.session.get(url, timeout=30, allow_redirects=True))
+        # 第二次：获取动态码页面
+        r = _net("校园卡系统", lambda: self.session.get(url, timeout=30, allow_redirects=True))
         ct = r.headers.get("Content-Type", "")
         if "image" in ct:
             return {"image": base64.b64encode(r.content).decode(), "type": ct, "refresh": 55}
@@ -410,11 +431,17 @@ class DektClient:
                 return None
             s = self._http()
             base = self.jxw_base + "/jwglxt"
-            html = s.get(base + "/xtgl/login_slogin.html", timeout=30).text
+            html = _net("教务系统登录页",
+                        lambda: s.get(base + "/xtgl/login_slogin.html", timeout=30)).text
             m = re.search(r'name="csrftoken"[^>]*value="([^"]*)"', html)
             csrftoken = m.group(1) if m else ""
-            r = s.get(base + "/xtgl/login_getPublicKey.html?time=%d" % int(time.time() * 1000), timeout=30)
-            kd = r.json()
+            r = _net("教务系统登录页", lambda: s.get(
+                base + "/xtgl/login_getPublicKey.html?time=%d" % int(time.time() * 1000),
+                timeout=30))
+            try:
+                kd = r.json()
+            except ValueError as e:  # 校内返回登录页/报错页时不是 JSON
+                raise DektError("教务系统登录公钥获取失败（返回内容不是 JSON），请稍后重试") from e
             n = int.from_bytes(base64.b64decode(kd["modulus"]), "big")
             e = int.from_bytes(base64.b64decode(kd["exponent"]), "big")
             from Crypto.Cipher import PKCS1_v1_5
@@ -443,13 +470,14 @@ class DektClient:
             data = {"yhm": student_id, "mm": p.mm, "yzm": captcha or "",
                     "csrftoken": p.csrftoken, "language": "zh_CN"}
             try:
-                r = p.http.post(base + "/xtgl/login_slogin.html?time=%d" % int(time.time() * 1000),
-                                data=data, timeout=30, allow_redirects=False,
-                                headers={"Content-Type": "application/x-www-form-urlencoded"})
-            except requests.exceptions.RequestException:
+                r = _net("教务系统", lambda: p.http.post(
+                    base + "/xtgl/login_slogin.html?time=%d" % int(time.time() * 1000),
+                    data=data, timeout=30, allow_redirects=False,
+                    headers={"Content-Type": "application/x-www-form-urlencoded"}))
+            except DektError:
                 self.jwxt_pending = None
                 self.pending_kind = None
-                raise DektError("教务系统响应超时，请重试")
+                raise
             self.jwxt_pending = None
             self.pending_kind = None
             if r.status_code != 302:
@@ -472,11 +500,9 @@ class DektClient:
             raise DektError("未登录教务系统")
         url = self.grades_url + "?doType=query&gnmkdm=N305005"
         body = self._grades_body(xnm, xqm)
-        try:
-            resp = self.jwxt_session.post(url, data=body, timeout=30,
-                                          headers=self._grades_headers(), allow_redirects=False)
-        except requests.exceptions.RequestException:
-            raise DektError("教务系统响应超时，请重试")
+        resp = _net("教务系统", lambda: self.jwxt_session.post(
+            url, data=body, timeout=30,
+            headers=self._grades_headers(), allow_redirects=False))
         if resp.status_code == 302:
             self.jwxt_session = None
             raise DektError("教务登录已失效，请重新查询")
@@ -532,11 +558,8 @@ class DektClient:
             "X-Requested-With": "XMLHttpRequest",
             "Origin": self.jxw_base,
         }
-        try:
-            resp = self.jwxt_session.post(url, data=body, timeout=30,
-                                          headers=headers, allow_redirects=False)
-        except requests.exceptions.RequestException:
-            raise DektError("教务系统响应超时，请重试")
+        resp = _net("教务系统", lambda: self.jwxt_session.post(
+            url, data=body, timeout=30, headers=headers, allow_redirects=False))
         if resp.status_code in (302, 901):  # 901 = 教务移动端「未登录/会话失效」
             print(f"[kbcx] session invalid ({resp.status_code}), zs={zs}", flush=True)
             self.jwxt_session = None
@@ -610,11 +633,8 @@ class DektClient:
             "X-Requested-With": "XMLHttpRequest",
             "Origin": self.jxw_base,
         }
-        try:
-            resp = self.jwxt_session.post(url, data=body, timeout=30,
-                                          headers=headers, allow_redirects=False)
-        except requests.exceptions.RequestException:
-            raise DektError("教务系统响应超时，请重试")
+        resp = _net("教务系统", lambda: self.jwxt_session.post(
+            url, data=body, timeout=30, headers=headers, allow_redirects=False))
         if resp.status_code in (302, 901):
             self.jwxt_session = None
             raise DektError("教务登录已失效，请重新导入")

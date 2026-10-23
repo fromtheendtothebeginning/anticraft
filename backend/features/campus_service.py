@@ -166,6 +166,10 @@ def _session_payload(sess, docker=None) -> dict:
     # 实际每个请求都卡到超时。探测失败（-1，Docker 抖动）不改状态，避免误报。
     if status == "connected" and docker is not None and docker.tun_routes(sess) == 0:
         status = "connecting"
+    # 展示给用户填代理的地址（服务器=域名/公网 IP）；后端自己连隧道仍走 sess.proxy_host（回环）。
+    # 服务器上这两个不是一个地址：报 127.0.0.1 的话用户在自己电脑上永远连不上这条隧道。
+    cfg = _get_managers().get("cfg")
+    host = getattr(cfg, "display_host", None) or getattr(sess, "proxy_host", "127.0.0.1")
     return {
         "connected": status == "connected",
         "status": status,
@@ -173,7 +177,7 @@ def _session_payload(sess, docker=None) -> dict:
         "student_id_masked": sess.student_id_masked,
         "socks_port": sess.socks_port,
         "http_port": sess.http_port,
-        "host": getattr(sess, "proxy_host", "127.0.0.1"),
+        "host": host,
     }
 
 
