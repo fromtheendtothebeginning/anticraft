@@ -309,8 +309,8 @@
   padding: 3px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch;
+  justify-content: flex-start;
   gap: 1px;
   overflow: hidden;
   cursor: pointer;
@@ -324,31 +324,36 @@
   filter: brightness(1.06);
 }
 
+/* 内容顶部排列：日程卡按真实时段拉高时，文字聚在顶部而不是被居中撑开留一大片空白 */
 .tt-event-name {
-  flex: 1 1 0;
-  min-height: 0;
+  flex: 0 1 auto;
   font-size: 11px;
   font-weight: 600;
   line-height: 1.25;
   display: -webkit-box;
-  -webkit-line-clamp: 4;
+  -webkit-line-clamp: 6;
   -webkit-box-orient: vertical;
   overflow: hidden;
   word-break: break-all;
 }
 
+/* 时间允许换行：手机列宽放不下「08:00–16:00」时折成两行，不再省略号截断 */
 .tt-event-time {
   flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0 3px;
   font-size: 10px;
   line-height: 1.2;
   color: var(--text-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   max-width: 100%;
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
+}
+
+.tt-event-time-text {
+  min-width: 0;
+  overflow-wrap: break-word;
 }
 
 .tt-course {

@@ -302,11 +302,15 @@ function splitWeekRuns(weeks) {
     if (last && x - last[last.length - 1] === 1) last.push(x)
     else runs.push([x])
   }
-  // 间隔 2 且同奇偶的相邻段合并（如 6,8 → 双周 6-8）
+  // 间隔 2 且同奇偶的相邻段合并（如 6,8 → 双周 6-8）。
+  // 待并入的段本身也必须是单奇偶；否则合并成「all」后会把中间缺席的周也画出来
+  //（如 5,7,9,10,11 → all 5-11，让同一门课的另一个上课地点在 6、8 周重叠显示）
   const merged = []
   for (const r of runs) {
     const prev = merged[merged.length - 1]
-    if (prev && r[0] - prev[prev.length - 1] === 2 && prev.every(x => x % 2 === r[0] % 2)) prev.push(...r)
+    if (prev && r[0] - prev[prev.length - 1] === 2
+      && prev.every(x => x % 2 === r[0] % 2)
+      && r.every(x => x % 2 === r[0] % 2)) prev.push(...r)
     else merged.push(r)
   }
   return merged.map(r => {

@@ -10,6 +10,9 @@ import {
   eventOnDay, minutesOf, minutesToSub, adjustmentOnDate, splitPlace,
 } from './model'
 
+// 日程卡最小高度（份数）：手机列宽下「课名 + 两行时间」约需 6 份
+const MIN_EVENT_SUBS = 6
+
 // 份数下标 a（0-109）→ 网格行号：表头 1 行 + 之前经过的色带（上午必经、下午/晚上按节次）+ 11:55 线
 function subRow(a) {
   const slot = Math.floor(a / SUBS_PER_SLOT)
@@ -137,11 +140,10 @@ export default function WeekBoard({ timetable, week, today, now, showTimes, onPi
           if (top == null) {
             const aS = minutesToSub(minutesOf(ev.start))
             const aE = minutesToSub(minutesOf(ev.end), true)
-            // 落在节次空隙（午休等）的日程两端会收敛到同一份，给最小可见高度而不是丢弃；
-            // 最短 5 份（约半节）保证「课名 + 时间」两行都读得出来
-            const aEnd = Math.max(aE, aS + 5)
+            // 落在节次空隙（午休等）的日程两端会收敛到同一份，给最小可见高度而不是丢弃
+            const aEnd = Math.max(aE, aS + MIN_EVENT_SUBS)
             top = subRow(aS)
-            span = Math.max(5, subRow(aEnd) - top + 1)
+            span = Math.max(MIN_EVENT_SUBS, subRow(aEnd) - top + 1)
           }
           return (
             WEEKDAY_SHORT.map((_, di) => {
@@ -180,7 +182,8 @@ export default function WeekBoard({ timetable, week, today, now, showTimes, onPi
                 >
                   <span className="tt-event-name">{ev.name}</span>
                   <span className="tt-event-time">
-                    <UiIcon name="calendar" size={9} /> {ev.start}–{ev.end}
+                    <UiIcon name="calendar" size={9} />
+                    <span className="tt-event-time-text">{ev.start}–{ev.end}</span>
                   </span>
                 </button>
               )
