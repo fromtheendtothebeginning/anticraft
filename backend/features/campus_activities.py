@@ -7,6 +7,7 @@
 # 按字母序先注册会把它拦走。
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session as OrmSession
 
 from campus import activities as act
@@ -199,3 +200,55 @@ def _detail_payload(aid, data):
     return {"ok": True, "data": {"id": aid, "hdms": hdms,
                                  "quota": act.extract_quota(hdms),
                                  "signup": act.extract_signup(hdms)}}
+
+
+class ActivitySignupRequest(BaseModel):
+    grjs: str = Field("", max_length=200)
+    grgzjl: str = Field("", max_length=500)
+    hjry: str = Field("", max_length=200)
+    bmyy: str = Field("", max_length=500)
+    zyjn: str = Field("", max_length=200)
+
+
+@router.post("/api/campus/activities/{aid}/signup", tags=["校园服务"])
+def campus_activity_signup(aid: str, req: ActivitySignupRequest,
+                           current_user: User = Depends(get_current_user_obj),
+                           db: OrmSession = Depends(get_db)):
+    """第二课堂活动报名（学工工作流 hdsq.zf）。个人写操作：只用自己的会话/凭据，
+    绝不走共享池或借道（池只能查公开数据，替不了报名）；提交一次、绝不重试。"""
+    import features.campus_service as cs
+    from campus.dekt import DektError
+
+    m = cs._mgrs()
+    extras = {"grjs": req.grjs, "grgzjl": req.grgzjl, "hjry": req.hjry,
+              "bmyy": req.bmyy, "zyjn": req.zyjn}
+
+    def _run(client):
+        try:
+            return {"ok": True, "data": client.signup_activity(aid, extras)}
+        except DektError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    sess = m["sessions"].get(current_user.id)
+    if sess and sess.status == "connected":
+        client = m["dekt"].get(current_user.id, sess)
+        r = _query_captcha_flow(m, sess, client, current_user, db)
+        if r is not None:
+            return r
+        return _run(client)
+
+    # 未连接：有凭据才自动连；无凭据直接引导配置（共享池帮不了报名）
+    try:
+        cs._load_cred(current_user, db)
+    except HTTPException:
+        raise HTTPException(
+            status_code=400,
+            detail="报名需要使用你自己的校园账号，请先到「我的 → 校园服务」配置学号与 VPN 密码")
+    try:
+        sess, client, cred = cs._connected_client(current_user, db)
+    except cs._VpnConnecting:
+        return {"vpn_connecting": True}
+    r = _query_captcha_flow(m, sess, client, current_user, db)
+    if r is not None:
+        return r
+    return _run(client)

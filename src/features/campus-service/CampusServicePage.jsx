@@ -405,8 +405,8 @@ function ScoreGroup({ group, defaultOpen }) {
   )
 }
 
-// ── 第二课堂活动卡片：报名状态标签 + 展开说明/报名方式 ──
-function ActivityCard({ a, detail, onExpand }) {
+// ── 第二课堂活动卡片：报名状态标签 + 展开说明/报名方式 + 在线报名 ──
+function ActivityCard({ a, detail, onExpand, signupState, onSignup }) {
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState('')
   const st = bmStateOf(a)
@@ -488,6 +488,27 @@ function ActivityCard({ a, detail, onExpand }) {
           ) : (
             <p className="cs-empty">{(detail && detail.err) || t('campusService.activities.hdmsEmpty')}</p>
           )}
+          {(st === 'open' || signupState) && (
+            <div className="cs-act-foot">
+              {signupState && signupState.err && (
+                <span className="cs-act-signup-err">{signupState.err}</span>
+              )}
+              {signupState && signupState.done ? (
+                <span className="cs-badge cs-badge-ok cs-act-signed">{t('campusService.activities.signupDone')}</span>
+              ) : (
+                <button
+                  type="button"
+                  className="btn cs-act-signup-btn"
+                  disabled={!!(signupState && signupState.busy)}
+                  onClick={() => onSignup(a)}
+                >
+                  {(signupState && signupState.busy)
+                    ? t('campusService.activities.signupBusy')
+                    : t('campusService.activities.signupBtn')}
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -524,6 +545,8 @@ export default function CampusServicePage() {
   const [actFilter, setActFilter] = useState('all') // all | open | soon | closed
   const [actSearch, setActSearch] = useState('')
   const [actDetails, setActDetails] = useState({}) // 活动id -> { loading | data | err }
+  const [actSignups, setActSignups] = useState({}) // 活动id -> { busy | done | err }（会话内记忆，学校侧为权威）
+  const [signupTarget, setSignupTarget] = useState(null) // 报名确认弹窗中的活动
   const [vpnConnecting, setVpnConnecting] = useState(false) // 后端自动连接 VPN / 等待共享会话（值为触发查询的 kind）
 
   // ── 电费 ──
@@ -925,6 +948,48 @@ export default function CampusServicePage() {
     } catch {
       if (ep === epochRef.current) {
         setActDetails(prev => ({ ...prev, [aid]: { err: t('campusService.activities.detailFail') } }))
+      }
+    }
+  }
+
+  // ── 第二课堂活动报名：确认后提交（写操作，只发一次、绝不自动重试） ──
+  const doActivitySignup = async () => {
+    const a = signupTarget
+    if (!a) return
+    const ep = epochRef.current
+    setSignupTarget(null)
+    setActSignups(prev => ({ ...prev, [a.id]: { busy: true } }))
+    try {
+      const res = await apiFetch(`/api/campus/activities/${a.id}/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      })
+      const b = await res.json().catch(() => null)
+      if (ep !== epochRef.current) return
+      // 隧道在连：不自动重发（写操作），提示用户连上后再点
+      if (b && b.vpn_connecting) {
+        setActSignups(prev => ({ ...prev, [a.id]: { err: t('campusService.vpnAutoConnecting') } }))
+        setVpnConnecting('activities')
+        fetchStatus()
+        return
+      }
+      // 学工要验证码：弹手动输入（提交成功后回来再点一次报名即可直达）
+      if (b && b.need_captcha) {
+        setActSignups(prev => ({ ...prev, [a.id]: {} }))
+        setCaptcha({ kind: 'activities', xnm: '', xqm: '', image: b.captcha_base64 || '', err: '', submitting: false })
+        setCapInput('')
+        return
+      }
+      if (res.ok && b && b.data) {
+        setVpnConnecting(false)
+        setActSignups(prev => ({ ...prev, [a.id]: { done: true } }))
+        return
+      }
+      setActSignups(prev => ({ ...prev, [a.id]: { err: (b && b.detail) ? String(b.detail) : t('campusService.error') } }))
+    } catch {
+      if (ep === epochRef.current) {
+        setActSignups(prev => ({ ...prev, [a.id]: { err: t('campusService.error') } }))
       }
     }
   }
@@ -1493,7 +1558,8 @@ export default function CampusServicePage() {
             </p>
             <div className="cs-act-list">
               {filtered.map(a => (
-                <ActivityCard key={a.id} a={a} detail={actDetails[a.id]} onExpand={fetchActDetail} />
+                <ActivityCard key={a.id} a={a} detail={actDetails[a.id]} onExpand={fetchActDetail}
+                  signupState={actSignups[a.id]} onSignup={setSignupTarget} />
               ))}
             </div>
           </>
@@ -1579,6 +1645,23 @@ export default function CampusServicePage() {
             {t('campusService.captcha.refetch')}
           </button>
         </div>
+      </Modal>
+    )
+  }
+
+  // ── 渲染：报名确认弹窗（写操作防误触） ──
+  const renderSignupModal = () => {
+    if (!signupTarget) return null
+    return (
+      <Modal
+        open
+        title={t('campusService.activities.signupConfirmTitle')}
+        confirmText={t('campusService.activities.signupConfirmOk')}
+        cancelText={t('modal.cancel')}
+        onConfirm={doActivitySignup}
+        onCancel={() => setSignupTarget(null)}
+      >
+        <p className="cs-signup-confirm">{t('campusService.activities.signupConfirmMsg', { name: signupTarget.name })}</p>
       </Modal>
     )
   }
@@ -1716,6 +1799,7 @@ export default function CampusServicePage() {
       </div>
 
       {renderCaptchaModal()}
+      {renderSignupModal()}
       {renderRechargeModal()}
 
       {/* 页面级 toast：固定视口居中，不受页面布局影响 */}

@@ -1078,7 +1078,13 @@
       "filter_open": "报名中",
       "filter_soon": "即将报名",
       "filter_closed": "已结束",
-      "viaPool": "共享会话"
+      "viaPool": "共享会话",
+      "signupBtn": "报名",
+      "signupBusy": "提交中…",
+      "signupDone": "已报名",
+      "signupConfirmTitle": "确认报名",
+      "signupConfirmOk": "确认报名",
+      "signupConfirmMsg": "将以你的学号提交「{name}」的报名申请，提交后进入学校审批流；请勿重复提交。"
     },
     "ecard": {
       "tip": "动态码仅供本人付款使用，请勿截图转发",

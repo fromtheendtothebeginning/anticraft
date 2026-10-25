@@ -1060,6 +1060,38 @@
   color: var(--text-secondary);
 }
 
+/* 在线报名：展开卡底部的操作行（错误提示 + 报名按钮/已报名徽章） */
+.cs-act-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 12px;
+  margin-top: 12px;
+}
+
+.cs-act-signup-err {
+  flex: 1 1 0;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--danger);
+  text-align: left;
+}
+
+.cs-act-signup-btn {
+  font-size: 13px;
+}
+
+.cs-act-signed {
+  font-weight: 700;
+}
+
+.cs-signup-confirm {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text-primary);
+}
+
 .cs-act-copy {
   padding: 1px 8px;
   border: 1px solid var(--border-color);
