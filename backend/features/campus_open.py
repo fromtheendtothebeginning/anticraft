@@ -364,6 +364,36 @@ def open_activity_detail(aid: str, current_user: User = Depends(get_current_user
                                  "signup": act.extract_signup(hdms)}}
 
 
+class OpenActivitySignupRequest(BaseModel):
+    grjs: str = Field("", max_length=200, description="个人角色（可选）")
+    grgzjl: str = Field("", max_length=500, description="个人工作经历（可选）")
+    hjry: str = Field("", max_length=200, description="合影人员（可选）")
+    bmyy: str = Field("", max_length=500, description="报名原因（可选）")
+    zyjn: str = Field("", max_length=200, description="专业技能（可选）")
+
+
+@router.post("/api/campus-open/activities/{aid}/signup", tags=["校园开放接口"])
+def open_activity_signup(aid: str, req: OpenActivitySignupRequest,
+                         current_user: User = Depends(get_current_user_obj),
+                         db: OrmSession = Depends(get_db)):
+    """第二课堂活动报名（学工工作流 hdsq.zf）：预填字段（学籍/活动/学分）由服务端
+    从学校表单页解析回传，客户端只传自述字段。写操作：服务端只提交一次、绝不重试，
+    客户端同样必须禁止自动重试"""
+    extras = {"grjs": req.grjs, "grgzjl": req.grgzjl, "hjry": req.hjry,
+              "bmyy": req.bmyy, "zyjn": req.zyjn}
+    try:
+        return {"ok": True, "data": _tunnel_data(
+            current_user, db, "xg", lambda c, cr: c.signup_activity(aid, extras))}
+    except _Connecting:
+        return _connecting()
+    except _NeedCaptcha as e:
+        return _need_captcha_payload(e)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 class OpenWeekRequest(BaseModel):
     xnm: str = ""
     xqm: str = ""
