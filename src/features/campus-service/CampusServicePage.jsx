@@ -422,11 +422,13 @@ function ActivityCard({ a, detail, onExpand, signupState, onSignup }) {
   const signup = (d && d.signup) || a.signup || {}
   const hasSignup = (signup.qq || []).length > 0 || (signup.phone || []).length > 0
     || (signup.tips || []).length > 0 || (signup.contact_lines || []).length > 0
+  // 已报名：本站刚报的（会话内）或学校端已报（详情 signed，来自本人会话才可信）
+  const signed = !!(signupState && signupState.done) || !!(d && d.signed === true)
 
   const handleToggle = () => {
     setOpen(v => !v)
-    // 展开且说明还没拿到（列表接口没带 hdms）→ 拉取详情
-    if (!open && !hdms && !(detail && (detail.loading || detail.data))) onExpand(a.id)
+    // 展开就拉详情（拿 hdms 说明 + signed 本人已报名标志；已有缓存/加载中不重复）
+    if (!open && !(detail && (detail.loading || detail.data))) onExpand(a.id)
   }
 
   const handleCopy = (text) => {
@@ -488,12 +490,12 @@ function ActivityCard({ a, detail, onExpand, signupState, onSignup }) {
           ) : (
             <p className="cs-empty">{(detail && detail.err) || t('campusService.activities.hdmsEmpty')}</p>
           )}
-          {(st === 'open' || signupState) && (
+          {(st === 'open' || signupState || signed) && (
             <div className="cs-act-foot">
-              {signupState && signupState.err && (
+              {signupState && signupState.err && !signed && (
                 <span className="cs-act-signup-err">{signupState.err}</span>
               )}
-              {signupState && signupState.done ? (
+              {signed ? (
                 <span className="cs-badge cs-badge-ok cs-act-signed">{t('campusService.activities.signupDone')}</span>
               ) : (
                 <button

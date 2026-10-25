@@ -167,14 +167,14 @@ def campus_activity_detail(aid: str, current_user: User = Depends(get_current_us
     if client is not None:
         try:
             data = client.fetch_activity_detail(aid)
-            return _detail_payload(aid, data)
+            return _detail_payload(aid, data, own=False)
         except DektError:
             _pool_stale(m, client)
 
     client = _borrow_client(m)
     if client is not None:
         try:
-            return _detail_payload(aid, client.fetch_activity_detail(aid))
+            return _detail_payload(aid, client.fetch_activity_detail(aid), own=False)
         except DektError:
             pass   # 该客户端登录态也失效，继续回退
 
@@ -195,9 +195,13 @@ def campus_activity_detail(aid: str, current_user: User = Depends(get_current_us
     return _detail_payload(aid, data)
 
 
-def _detail_payload(aid, data):
+def _detail_payload(aid, data, own=True):
+    """own=False 表示数据来自共享池/借道会话：bm（本人是否已报名）是个人字段，
+    别人的会话取回的不可信，不透传（前端仅在 signed===true 时标记）。"""
     hdms = str(data.get("hdms") or "")
+    signed = (data.get("bm") == "1") if own else None
     return {"ok": True, "data": {"id": aid, "hdms": hdms,
+                                 "signed": signed,
                                  "quota": act.extract_quota(hdms),
                                  "signup": act.extract_signup(hdms)}}
 
