@@ -199,7 +199,7 @@ def _detail_payload(aid, data, own=True):
     """own=False 表示数据来自共享池/借道会话：bm（本人是否已报名）是个人字段，
     别人的会话取回的不可信，不透传（前端仅在 signed===true 时标记）。"""
     hdms = str(data.get("hdms") or "")
-    signed = (data.get("bm") == "1") if own else None
+    signed = (str(data.get("bm")) == "1") if own else None
     return {"ok": True, "data": {"id": aid, "hdms": hdms,
                                  "signed": signed,
                                  "quota": act.extract_quota(hdms),

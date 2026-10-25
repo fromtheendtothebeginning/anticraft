@@ -360,7 +360,7 @@ def open_activity_detail(aid: str, current_user: User = Depends(get_current_user
         raise HTTPException(status_code=400, detail=str(e))
     hdms = str(data.get("hdms") or "")
     return {"ok": True, "data": {"id": aid, "hdms": hdms,
-                                 "signed": data.get("bm") == "1",
+                                 "signed": str(data.get("bm")) == "1",
                                  "quota": act.extract_quota(hdms),
                                  "signup": act.extract_signup(hdms)}}
 
