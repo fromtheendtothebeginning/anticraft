@@ -498,7 +498,7 @@ function ActivityCard({ a, detail, onExpand, signupState, onSignup }) {
               ) : (
                 <button
                   type="button"
-                  className="btn cs-act-signup-btn"
+                  className="cs-act-signup-btn"
                   disabled={!!(signupState && signupState.busy)}
                   onClick={() => onSignup(a)}
                 >

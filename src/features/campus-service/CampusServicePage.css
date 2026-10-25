@@ -1074,12 +1074,44 @@
   flex: 1 1 0;
   min-width: 0;
   font-size: 12px;
+  line-height: 1.6;
   color: var(--danger);
   text-align: left;
 }
 
+/* 报名按钮：Corporate Clean 统一操作按钮的卡片内紧凑版
+   （不用全局 .btn——它在 ≤480px 手机端 width:100% 会撑满整行） */
 .cs-act-signup-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 18px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--accent-1);
+  color: #fff;
   font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  white-space: nowrap;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--t-fast) var(--t-ease);
+  cursor: pointer;
+}
+
+.cs-act-signup-btn:hover:not(:disabled) {
+  background: var(--accent-1-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.cs-act-signup-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.cs-act-signup-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+  box-shadow: none;
 }
 
 .cs-act-signed {
@@ -1114,6 +1146,11 @@
 @media (max-width: 640px) {
   .cs-act-search {
     max-width: none;
+  }
+
+  /* 报名操作行：错误提示独占一行，按钮落到下一行右对齐（窄屏不挤一行） */
+  .cs-act-signup-err {
+    flex: 1 1 100%;
   }
 }
 
