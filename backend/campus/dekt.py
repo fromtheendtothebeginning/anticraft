@@ -3,7 +3,6 @@
 # 域名走 campus.config.Config（默认 SIT），便于迁移他校。
 
 import base64
-import html
 import random
 import re
 import threading
@@ -365,82 +364,70 @@ class DektClient:
             self._hdms_cache[hd_id] = hdms
         return data
 
-    # ---- 活动报名（学工工作流 hdsq.zf，2026-10 上线）----
-    # 抓包（2026-10-25）：报名表单页由学校侧预填全部字段（学号/姓名/身份证/当前学分等
-    # 约 30 项，含 xq=2024 这类内部码），浏览器把整表单 urlencoded POST 回 hdsq.zf，
-    # 成功返回 {"code":0,"data":{"instanceId":"…"}}。字段取值只能来自表单页预填，
-    # 所以实现 = 解析预填原样回传，绝不自行拼装字段。
+    # ---- 活动报名（学工工作流 hdsq，2026-10 上线）----
+    # 抓包+前端 JS 逆向（2026-10-25）：报名走正方动态表单工作流——
+    # GET /dynamic/form/find/hdsq/default.zf?dataId=xsxx|&hdsq|<hdid> 返回 39 个字段定义，
+    # 预填值在 fields[].defaultValue（学籍/身份证/内部学期码/当前学分等全部由学校生成），
+    # 提交端点由响应 saveUrl 下发（= /hdgl/flow/apply/hdsq.zf）；
+    # 浏览器把预填+自述字段平铺 urlencoded POST，成功返回 {"code":0,"data":{"instanceId"}}。
+    # 字段取值只能来自 defaultValue，绝不自行拼装；复合字段 hdkssj|hdjssj 是
+    # "开始,结束" 逗号拼接，提交时拆成 hdkssj/hdjssj 两个。
     SIGNUP_URL_PATH = "/hdgl/flow/apply/hdsq.zf"
+    SIGNUP_FORM_URL_PATH = "/dynamic/form/find/hdsq/default.zf"
     # 用户可在表单里自述的可选字段（抓包里全空），报名时由调用方补充
     SIGNUP_EXTRA_FIELDS = ("grjs", "grgzjl", "hjry", "bmyy", "zyjn")
 
-    @staticmethod
-    def _parse_form(text):
-        """解析表单页全部可提交控件的 name→value（input/textarea/select）。
-        checkbox/radio/file/button 不参与：上游表单未用到，选中态也无从判定。"""
-
-        def attr(tag, name):
-            m = re.search(r'%s="([^"]*)"' % name, tag, re.I)
-            return m.group(1) if m else ""
-
-        form = {}
-        for tag in re.findall(r"<input\b[^>]*>", text, re.I):
-            itype = (attr(tag, "type") or "text").lower()
-            name = attr(tag, "name")
-            if not name or itype in ("checkbox", "radio", "file", "submit",
-                                     "button", "image", "password"):
-                continue
-            form[name] = html.unescape(attr(tag, "value"))
-        for m in re.finditer(r'<textarea\b[^>]*\bname="([^"]+)"[^>]*>'
-                             r"(.*?)</textarea>", text, re.I | re.S):
-            form[m.group(1)] = html.unescape(m.group(2)).strip()
-        for m in re.finditer(r'<select\b[^>]*\bname="([^"]+)"[^>]*>'
-                             r"(.*?)</select>", text, re.I | re.S):
-            first = chosen = None
-            for attrs in re.findall(r"<option\b([^>]*)>", m.group(2), re.I):
-                vm = re.search(r'\bvalue="([^"]*)"', attrs, re.I)
-                v = vm.group(1) if vm else ""
-                if first is None:
-                    first = v
-                if re.search(r'\bselected\b', attrs, re.I):
-                    chosen = v
-                    break
-            form[m.group(1)] = html.unescape(chosen if chosen is not None
-                                             else (first or ""))
-        return form
-
     def fetch_signup_form(self, hd_id):
-        """GET 报名表单页并解析全部预填字段（学籍/活动/隐藏域，含 decisionSignature）"""
+        """GET 动态表单定义，返回 (save_url, {field: 预填值})。
+        附件字段 bmfj 不参与；decisionSignature 前端固定附加空值，保持同款提交体。"""
         if not self.session:
             raise DektError("未登录")
-        url = self.xg_api + self.SIGNUP_URL_PATH
         resp = _net("学工系统", lambda: self.session.get(
-            url, params={"hdid": hd_id}, timeout=30, allow_redirects=False,
-            headers={"Referer": self.xg_base + "/hdgl/hdydlist"}))
-        if resp.status_code in (301, 302, 303, 307, 308):
+            self.xg_api + self.SIGNUP_FORM_URL_PATH,
+            params={"dataId": "xsxx|&hdsq|%s" % hd_id},
+            timeout=30, headers=self._xg_headers()))
+        j = self._parse_response(resp)
+        if not isinstance(j, dict):
+            # 落到登录页等 HTML：会话已失效，清掉让下次查询重新登录
             self.session = None
             raise DektError("登录态失效，请重新查询")
-        form = self._parse_form(resp.text)
+        if j.get("code") != 0:
+            raise DektError(j.get("msg") or "报名表单获取失败")
+        d = j.get("data") or {}
+        form = {}
+        for f in d.get("fields") or []:
+            code = f.get("fieldCode")
+            if not code or code == "bmfj":
+                continue
+            val = f.get("defaultValue")
+            if code == "hdkssj|hdjssj":
+                parts = str(val or "").split(",")
+                if len(parts) == 2:
+                    form["hdkssj"], form["hdjssj"] = parts[0].strip(), parts[1].strip()
+                continue
+            form[code] = "" if val is None else val
         if len(form) < 10 or not form.get("hdid"):
-            raise DektError("报名表单页解析失败（活动可能不存在、不在报名期或已报名）"
+            raise DektError("报名表单解析失败（活动可能不存在、不在报名期或已报名）"
                             "(%s)" % resp.status_code)
-        return form
+        form["hdid"] = hd_id
+        form.setdefault("decisionSignature", "")
+        return d.get("saveUrl") or self.SIGNUP_URL_PATH, form
 
     def signup_activity(self, hd_id, extras=None):
-        """第二课堂活动报名：预填表单 + 可选自述字段回传提交，成功返回工作流实例 ID。
+        """第二课堂活动报名：动态表单预填 + 可选自述字段回传提交，成功返回工作流实例 ID。
         写操作：只提交一次、绝不重试（重复提交可能生成多条申请记录）。"""
-        form = self.fetch_signup_form(hd_id)
+        save_url, form = self.fetch_signup_form(hd_id)
         for k in self.SIGNUP_EXTRA_FIELDS:
             v = str((extras or {}).get(k) or "").strip()
             if v:
                 form[k] = v
-        url = self.xg_api + self.SIGNUP_URL_PATH
+        url = self.xg_api + save_url
         resp = _net("学工系统", lambda: self.session.post(
             url, data=form, timeout=30, allow_redirects=False,
             headers={
                 "Content-Type": "application/x-www-form-urlencoded",
                 "Origin": self.xg_base,
-                "Referer": url + "?hdid=" + hd_id,
+                "Referer": self.xg_base + "/hdgl/hdydlist",
                 "X-Requested-With": "XMLHttpRequest",
             }))
         j = self._parse_response(resp)
