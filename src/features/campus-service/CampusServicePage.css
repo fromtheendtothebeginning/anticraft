@@ -1154,21 +1154,6 @@
   }
 }
 
-/* 共享会话池入口（主页 admin 链接） */
-.cs-pool-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 14px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
-.cs-pool-link:hover {
-  color: var(--accent-1);
-}
-
 /* 活动看板「共享会话」小徽标 */
 .cs-act-via {
   margin-left: 8px;

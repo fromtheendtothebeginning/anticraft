@@ -35,12 +35,9 @@ def _get_managers():
         # 初始化失败缓存 60 秒后允许重试，避免 Docker 瞬断后 503 直到重启进程
         failed = _singletons is not None and "error" in _singletons
         if _singletons is None or (failed and time.monotonic() - _init_failed_at >= _INIT_RETRY_SECONDS):
-            import copy
-
             from campus.config import Config
             from campus.dekt import DektManager
             from campus.docker_mgr import DockerManager
-            from campus.pool import PoolManager
             from campus.sessions import SessionManager
 
             cfg = Config()
@@ -48,26 +45,9 @@ def _get_managers():
                 docker = DockerManager(cfg)
                 docker.cleanup_orphans()
                 sessions = SessionManager(cfg, docker)
-                # 共享会话池：专属 SessionManager（常驻，不受 12h 寿命上限约束）
-                pool_cfg = copy.copy(cfg)
-                pool_cfg.max_lifetime_hours = float("inf")
-                # 学校侧可能连续拒绝几次登录才放行（实测 6 次失败后成功），监控窗口加长到 5 分钟
-                pool_cfg.connect_timeout = 300
-                pool_sessions = SessionManager(pool_cfg, docker)
                 dekt = DektManager(cfg)
-
-                def _pool_vision():
-                    from features.campus_pool import resolve_pool_vision
-                    return resolve_pool_vision()
-
-                pool = PoolManager(
-                    pool_cfg, docker, pool_sessions, dekt,
-                    get_vision=_pool_vision,
-                    solve_captcha=lambda cap, vision: _ai_solve_captcha(_b64(cap), vision),
-                    log=_log,
-                )
                 _singletons = {"cfg": cfg, "docker": docker, "sessions": sessions,
-                               "dekt": dekt, "pool": pool}
+                               "dekt": dekt}
             except Exception as e:
                 _init_failed_at = time.monotonic()
                 _log(f"campus docker init failed: {str(e)[:200]}")

@@ -1,8 +1,8 @@
 # features/campus_activities.py — 第二课堂活动查询（学工「活动报名」引导页看板）
 # 适配自 Second_Class_Notification：列表 getHdgcHdList.zf + 详情 details.zf(hdms 活动说明)。
-# 会话选路：自己已连接的会话 → 共享会话池 → 借道其他成员已登录学工的会话 → 有凭据自动连自己。
-# 活动是公开数据，所有登录成员零凭据可用（等池 / 借道），绝不要求普通成员填校园凭据；
-# 个人数据（分数/成绩/校园卡）永远不走共享池，见 features/campus_pool.py。
+# 会话选路：自己已连接的会话 → 借道其他成员已登录学工的会话 → 有凭据自动连自己。
+# 活动是公开数据，现场有其他成员在线时零凭据也可借道查看；
+# 个人数据（分数/成绩/校园卡）永远只走用户自己的会话。
 # 路由不用 /api/campus/query/activities：campus_service 的通配路由 POST /api/campus/query/{kind}
 # 按字母序先注册会把它拦走。
 
@@ -16,24 +16,6 @@ from deps import get_current_user_obj
 from models import User
 
 router = APIRouter()
-
-
-def _pool_client(m):
-    """从共享池轮转取一个就绪客户端；池不可用返回 None。"""
-    pool = m.get("pool")
-    if pool is None:
-        return None
-    got = pool.acquire()
-    return got[1] if got else None
-
-
-def _pool_stale(m, client):
-    pool = m.get("pool")
-    if pool:
-        for key in list(pool.ready):
-            if pool.dekt.clients.get(key) is client:
-                pool.mark_stale(key)
-                return
 
 
 def _query_captcha_flow(m, sess, client, current_user, db):
@@ -59,15 +41,11 @@ def _query_captcha_flow(m, sess, client, current_user, db):
 def _borrow_client(m):
     """借一个其他成员已连接且已登录学工的会话客户端查公开数据（活动）。
 
-    池让位/未就绪时，只要现场有任何人连着 VPN 且登录过学工，活动列表就应可查
+    只要现场有任何人连着 VPN 且登录过学工，活动列表就应可查
     ——活动是公开数据，谁的会话取回来都一样；绝不借用个人会话查个人数据。
     """
-    from campus.pool import KEY_BASE
-
     sessions, dekt = m["sessions"], m["dekt"]
     for uid in list(dekt.clients):
-        if isinstance(uid, int) and uid >= KEY_BASE:
-            continue   # 池账号的客户端在专属 DektManager 里，防御性跳过
         sess = sessions.get(uid)
         if sess is None or sess.status != "connected":
             continue
@@ -77,15 +55,7 @@ def _borrow_client(m):
     return None
 
 
-def _no_cred_outcome(m):
-    """无凭据成员的兜底：池在养号/让位等待就返回 vpn_connecting 让前端轮询，
-    完全没配置共享账号才提示找管理员（绝不要求普通成员填凭据）。"""
-    pool = m.get("pool")
-    if pool and any(a.get("enabled") for a in pool.accounts.values()):
-        return {"vpn_connecting": True}
-    raise HTTPException(
-        status_code=400,
-        detail="共享会话尚未配置：请管理员在「工具 → 校园服务 → 会话池管理」添加共享校园账号")
+_NO_CRED_DETAIL = "尚未填写校园服务凭据：请到「我的 → 校园服务」填写学号与 VPN 密码后查询活动"
 
 
 @router.post("/api/campus/activities", tags=["校园服务"])
@@ -109,15 +79,7 @@ def campus_activities(current_user: User = Depends(get_current_user_obj),
         except DektError as e:
             raise HTTPException(status_code=400, detail=str(e))
 
-    # 2) 共享会话池（免配置；只服务公开数据）
-    client = _pool_client(m)
-    if client is not None:
-        try:
-            return {"ok": True, "data": act.activities_payload(client), "via_pool": True}
-        except DektError:
-            _pool_stale(m, client)   # 登录态失效 → 维护线程重登，本次落入回退
-
-    # 3) 借道其他成员已登录学工的会话（活动是公开数据，谁的会话取回都一样）
+    # 2) 借道其他成员已登录学工的会话（活动是公开数据，谁的会话取回都一样）
     client = _borrow_client(m)
     if client is not None:
         try:
@@ -125,11 +87,13 @@ def campus_activities(current_user: User = Depends(get_current_user_obj),
         except DektError:
             pass   # 该客户端登录态也失效，继续回退
 
-    # 4) 有凭据才自动连接自己的会话；无凭据成员等池或提示配置共享账号
+    # 3) 有凭据才自动连接自己的会话
     try:
         cs._load_cred(current_user, db)
     except HTTPException:
-        return _no_cred_outcome(m)
+        raise HTTPException(
+            status_code=400,
+            detail=_NO_CRED_DETAIL)
     try:
         sess, client, cred = cs._connected_client(current_user, db)
     except cs._VpnConnecting:
@@ -163,14 +127,6 @@ def campus_activity_detail(aid: str, current_user: User = Depends(get_current_us
             raise HTTPException(status_code=400, detail=str(e))
         return _detail_payload(aid, data)
 
-    client = _pool_client(m)
-    if client is not None:
-        try:
-            data = client.fetch_activity_detail(aid)
-            return _detail_payload(aid, data, own=False)
-        except DektError:
-            _pool_stale(m, client)
-
     client = _borrow_client(m)
     if client is not None:
         try:
@@ -181,7 +137,7 @@ def campus_activity_detail(aid: str, current_user: User = Depends(get_current_us
     try:
         cs._load_cred(current_user, db)
     except HTTPException:
-        return _no_cred_outcome(m)
+        raise HTTPException(status_code=400, detail=_NO_CRED_DETAIL)
     try:
         sess, client, cred = cs._connected_client(current_user, db)
     except cs._VpnConnecting:

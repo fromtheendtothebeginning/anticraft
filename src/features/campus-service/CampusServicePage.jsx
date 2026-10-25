@@ -1714,11 +1714,6 @@ export default function CampusServicePage() {
               <span className="cs-qcard-state">{'›'}</span>
             </Link>
           </div>
-          {user.role === 'admin' && (
-            <Link to="/tools/campus-service/pool" className="cs-pool-link">
-              {t('campusService.pool.link')} <span className="cs-qcard-state">{'›'}</span>
-            </Link>
-          )}
         </>
       )}
     </>

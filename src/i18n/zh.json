@@ -1023,39 +1023,6 @@
       "timetable": "课程表",
       "timetableDesc": "手动录入学期课程，周/日视图查看（无需连接校园网）"
     },
-    "pool": {
-      "link": "共享会话池管理"
-    },
-    "score": {
-      "total": "总得分",
-      "credit": "实践学分",
-      "empty": "暂无第二课堂数据，请稍后重试",
-      "group": "小计",
-      "student": {
-        "xh": "学号",
-        "xm": "姓名",
-        "nj": "年级",
-        "bmmc": "学院",
-        "zymc": "专业",
-        "bjmc": "班级"
-      }
-    },
-    "grades": {
-      "gpa": "平均绩点",
-      "count": "共 {n} 门",
-      "selectTerm": "按学年学期筛选",
-      "allTerms": "全部学期",
-      "empty": "暂无成绩记录",
-      "col": {
-        "course": "课程",
-        "score": "成绩",
-        "credit": "学分",
-        "gpa": "绩点",
-        "method": "考核方式",
-        "year": "学年",
-        "term": "学期"
-      }
-    },
     "activities": {
       "searchPlaceholder": "搜索活动名称 / 主办 / 类别…",
       "bmOpen": "报名中",
@@ -1169,37 +1136,6 @@
       "loadFailed": "配置加载失败，请刷新重试",
       "networkError": "网络错误，请稍后重试"
     }
-  },
-  "campusPool": {
-    "title": "共享会话池管理",
-    "subtitle": "维护常驻在线的校园账号，站内用户无需配置凭据即可在活动看板查看公开活动（分数/成绩/校园卡等个人数据仍走用户自己的会话）",
-    "adminOnly": "仅管理员可管理共享会话池",
-    "visionMissing": "尚未配置识图模型：共享会话无法自动识别登录验证码，会一直停在「连接中」。请到「我的 → AI 设置」为第一个管理员账号配置识图模型",
-    "accountsTitle": "池内账号",
-    "empty": "暂无账号，添加后约 1 分钟内自动连接",
-    "connectingHint": "正在建立 VPN 隧道并登录学工，约需 2–4 分钟，状态每 5 秒自动刷新；期间请勿删除或停用账号，也保持自己的 VPN 断开（学校限制单 IP 一条隧道）。若显示「连接失败」请核对学号与 VPN 密码；停用再启用可立即重试",
-    "listHint": "受学校限制，单个出口 IP 同时只能有一条 VPN 隧道：同一时间只有第一个启用的账号在线（其余待命，主账号失效时可切换）；有用户自己的会话在线时池会自动让位，用户断开约 3 分钟后恢复。请勿与个人凭据或其他环境共用同一学号",
-    "addTitle": "添加账号",
-    "studentId": "学号",
-    "password": "VPN 密码",
-    "label": "备注名（可选）",
-    "add": "添加",
-    "adding": "添加中…",
-    "needSidPwd": "请填写学号和 VPN 密码",
-    "addHint": "密码加密存储；添加后自动连接校园网并登录学工系统（验证码由管理员配置的识图模型识别）",
-    "disable": "停用",
-    "enable": "启用",
-    "delete": "删除",
-    "deleteTitle": "删除共享账号",
-    "deleteText": "确认删除 {name}？对应会话将断开并移除容器。",
-    "stReady": "可用",
-    "stLogging": "在线，登录学工中",
-    "stConnecting": "连接中",
-    "stFailed": "连接失败",
-    "stIdle": "等待连接",
-    "stDisabled": "已停用",
-    "stStandby": "待命",
-    "stYielded": "让位中"
   },
   "printService": {
     "navLabel": "云打印",

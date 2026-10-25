@@ -371,22 +371,6 @@ class CampusCred(Base):
         return f"<CampusCred(id={self.id}, user_id={self.user_id})>"
 
 
-class CampusPoolAccount(Base):
-    """共享 VPN 会话账号池 —— 站长维护的校园账号，常驻在线供活动看板免配置使用。
-    只服务公开数据（活动列表/详情）；分数/成绩/校园卡等个人数据一律走用户自己的会话。"""
-    __tablename__ = "campus_pool_accounts"
-
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    student_id = Column(String(50), nullable=False, unique=True, comment="学号（池内唯一，避免同学号互踢）")
-    password_enc = Column(Text, nullable=False, comment="VPN 密码（加密存储）")
-    label = Column(String(50), nullable=False, default="", server_default="", comment="备注名")
-    enabled = Column(Boolean, nullable=False, default=True, server_default="1", comment="是否启用")
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="创建时间")
-
-    def __repr__(self):
-        return f"<CampusPoolAccount(id={self.id}, student_id={self.student_id})>"
-
-
 class ElectricityRecord(Base):
     """电费记录 —— 每次查询/自动采集写一行，用于折线图展示"""
     __tablename__ = "electricity_records"
