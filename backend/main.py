@@ -108,8 +108,20 @@ def health_check():
 
 import importlib, pkgutil
 import features as _features
+
+# 已删除的历史模块：SCP 部署不删远端文件，服务器上残留的 features/campus_pool.py
+# 会 import 已删的 CampusPoolAccount，使整个服务起不来（AGENTS.md #20）。
+# 这里直接跳过；其余模块导入失败也只记录并跳过，避免一个残留文件拖垮全站。
+_REMOVED_FEATURES = {"campus_pool"}
 for _m in sorted(pkgutil.iter_modules(_features.__path__), key=lambda m: m.name):
-    _mod = importlib.import_module(f"features.{_m.name}")
+    if _m.name in _REMOVED_FEATURES:
+        _log(f"[features] 跳过已删除的历史模块：{_m.name}")
+        continue
+    try:
+        _mod = importlib.import_module(f"features.{_m.name}")
+    except Exception as _e:
+        _log(f"[features] {_m.name} 导入失败，已跳过：{str(_e)[:200]}")
+        continue
     _router = getattr(_mod, "router", None)
     if _router is not None:
         app.include_router(_router)

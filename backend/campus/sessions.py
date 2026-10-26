@@ -66,6 +66,19 @@ class SessionManager:
             old = self.sessions.get(user_id)
             if old:
                 self._drop_locked(user_id)
+            # 共享会话池移除后，每个用户都会新建一个 256m 的 EasyConnect 容器；
+            # max_sessions 以前只是配置项没人用，这里必须兜住，否则用户一多就把宿主机 OOM。
+            if self.cfg.max_sessions > 0 and len(self.sessions) >= self.cfg.max_sessions:
+                stale = next(
+                    (uid for uid, s in self.sessions.items() if s.status == "failed"),
+                    None,
+                )
+                if stale is not None:
+                    self._drop_locked(stale)
+                else:
+                    raise RuntimeError(
+                        "校园 VPN 会话已达上限（%d），请稍后再试；"
+                        "可在服务器 .env 调整 CAMPUS_MAX_SESSIONS" % self.cfg.max_sessions)
             # 每用户固定端口（bridge 模式下 Docker 端口映射到不同外部端口）；
             # 共享会话池等调用方也可显式传入 allocate_ports() 分配的随机空闲端口
             if ports is None:
