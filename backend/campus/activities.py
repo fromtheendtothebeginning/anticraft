@@ -70,6 +70,28 @@ def extract_quota(text):
     return None
 
 
+def enrolled_of(activity):
+    """报名人数：上游字段 bdrs（旧版抓包里存在但多为空）；兼容同义字段。"""
+    for k in ("bdrs", "bmrs", "ybmrs", "bmsl"):
+        v = activity.get(k)
+        if v is None or v == "":
+            continue
+        try:
+            return int(str(v).strip())
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
+def status_text_of(activity):
+    """报名状态原文（部分活动写「名额已满 / 条件不符」）；纯数字状态码不参与判断。"""
+    for k in ("bmztmc", "bmzt", "hdztmc", "ztmc"):
+        v = str(activity.get(k) or "").strip()
+        if v and re.search(r"[\u4e00-\u9fa5]", v):
+            return v
+    return ""
+
+
 def parse_dt(text):
     if not text:
         return None
@@ -117,6 +139,10 @@ def snapshot(a):
         "campus": campus_of(a),
         "backfill": is_backfill(a),
         "quota": extract_quota(hdms),
+        # 报名人数 / 学校给的报名状态原文：客户端据此把报名按钮显示成「已人满 / 条件不符」
+        "enrolled": enrolled_of(a),
+        "status_code": str(a.get("hdbmzt") or ""),
+        "status_text": status_text_of(a),
         "signup": extract_signup(hdms),
         "hdms": (hdms or "")[:2000],
     }

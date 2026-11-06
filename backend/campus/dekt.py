@@ -10,6 +10,8 @@ import time
 
 import requests
 
+from campus import academic as acad
+
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/120.0 Safari/537.36")
 
@@ -56,6 +58,24 @@ def _net(what, fn):
                                % (what, type(e).__name__)) from e
     except requests.exceptions.RequestException as e:
         raise DektError("%s请求失败（%s），请重试" % (what, type(e).__name__)) from e
+
+
+def _page_snippet(html):
+    """给教务页面去噪并截一段可见文本，便于定位「页面改版 / 登录页」这类失败。"""
+    text = re.sub(r"<!--.*?-->", " ", html or "", flags=re.S)
+    text = re.sub(r"<script\b.*?</script>", " ", text, flags=re.S | re.I)
+    text = re.sub(r"<style\b.*?</style>", " ", text, flags=re.S | re.I)
+    text = re.sub(r"\s+", " ", text).strip()
+    if not text:
+        return "（学校返回了空页面）"
+    at = -1
+    for kw in ("错误", "不正确", "无效", "验证码", "失败"):
+        at = text.find(kw)
+        if at >= 0:
+            break
+    start = max(0, at - 60) if at >= 0 else 0
+    end = min(len(text), start + 160)
+    return ("…" if start > 0 else "") + text[start:end].strip() + ("…" if end < len(text) else "")
 
 
 class PendingLogin:
@@ -363,6 +383,103 @@ class DektClient:
         if hdms:
             self._hdms_cache[hd_id] = hdms
         return data
+
+    # ---- 我的报名 / 加分明细（学生侧，2026-11 抓包）----
+    HDBMZT_TEXT = {"1": "流程设置中", "2": "报名已截止", "3": "报名未开始",
+                   "4": "报名已满", "5": "已报名", "6": "无需报名"}
+
+    def fetch_signed_activities(self, max_pages=5):
+        """已报名的第二课堂活动：POST /hdgl/list.zf all=0（all=1 是全部活动）。"""
+        if not self.session:
+            raise DektError("未登录")
+        out = []
+        for page in range(1, max_pages + 1):
+            resp = _net("学工系统", lambda: self.session.post(
+                self.xg_api + "/hdgl/list.zf",
+                data={"all": "0", "currentPage": page, "showCount": 50},
+                timeout=30, headers=self._xg_headers()))
+            j = self._parse_response(resp)
+            data = j.get("data") if isinstance(j, dict) else None
+            items = (data or {}).get("items") if isinstance(data, dict) else None
+            if not isinstance(j, dict) or j.get("code") != 0 or items is None:
+                self.session = None
+                raise DektError("登录态失效，请重新查询")
+            for it in items:
+                if not isinstance(it, dict) or not it.get("id"):
+                    continue
+                out.append({
+                    "id": str(it.get("id")),
+                    "name": str(it.get("hdmc") or ""),
+                    "dlmc": str(it.get("dlmc") or ""),
+                    "lbmc": str(it.get("lbmc") or ""),
+                    "start": it.get("hdkssj"),
+                    "end": it.get("hdjssj"),
+                    "place": str(it.get("hddd") or ""),
+                    "status_text": self.HDBMZT_TEXT.get(str(it.get("hdbmzt") or ""), ""),
+                    "signed": str(it.get("bm")) == "1",
+                })
+            if len(items) < 50:
+                break
+        return out
+
+    def fetch_credit_records(self, max_pages=10):
+        """第二课堂加分明细：POST /bizFlow/result/group/list.zf groupCode=xshd。
+        每条 = 一次活动参与记录（活动 / 大类 / 学分 / 审批状态 / 时间）。"""
+        if not self.session:
+            raise DektError("未登录")
+        out = []
+        seen = set()
+        total = 0
+        for page in range(1, max_pages + 1):
+            resp = _net("学工系统", lambda: self.session.post(
+                self.xg_api + "/bizFlow/result/group/list.zf",
+                data={"groupCode": "xshd", "currentPage": page, "showCount": 100},
+                timeout=30, headers=self._xg_headers()))
+            j = self._parse_response(resp)
+            data = j.get("data") if isinstance(j, dict) else None
+            rows = (data or {}).get("rows") if isinstance(data, dict) else None
+            if not isinstance(j, dict) or j.get("code") != 0 or rows is None:
+                self.session = None
+                raise DektError("登录态失效，请重新查询")
+            try:
+                reported = int(str((data or {}).get("totalCount") or "").strip())
+                if reported > 0:
+                    total = reported
+            except (TypeError, ValueError):
+                pass
+            for it in rows:
+                if not isinstance(it, dict):
+                    continue
+                name = str(it.get("hdmc") or "").strip()
+                if not name:
+                    continue
+                # 翻页期间学校数据变动可能让同一工作流实例出现在两页里：按实例 ID 去重。
+                instance_id = str(it.get("INSTANCE_ID") or it.get("ID") or "").strip()
+                if instance_id and instance_id in seen:
+                    continue
+                if instance_id:
+                    seen.add(instance_id)
+                out.append({
+                    "id": str(it.get("INSTANCE_ID") or it.get("ID") or it.get("hdid") or name),
+                    "name": name,
+                    "dldm": str(it.get("dldm") or ""),
+                    "lbdm": str(it.get("lbdm") or ""),
+                    "credit": str(it.get("hdxf") or it.get("jcxsxf") or ""),
+                    "status": str(it.get("flowstatusmc") or it.get("FLOWSTATUS") or ""),
+                    "start": it.get("hdkssj"),
+                    "end": it.get("hdjssj"),
+                    "date": it.get("CREATE_TIME"),
+                })
+            # 学校可能把 showCount 截到更小：有 totalCount 时按总数续页，
+            # 没有时才用「本页不满一页即结束」的旧规则。
+            if not rows:
+                break
+            if total > 0:
+                if len(out) >= total:
+                    break
+            elif len(rows) < 100:
+                break
+        return out
 
     # ---- 活动报名（学工工作流 hdsq，2026-10 上线）----
     # 抓包+前端 JS 逆向（2026-10-25）：报名走正方动态表单工作流——
@@ -735,6 +852,100 @@ class DektClient:
             })
         print(f"[kscx] ok: {len(exams)} exams (xnm={xnm}, xqm={xqm})", flush=True)
         return exams
+
+    # ==================== 学业情况（学生学业情况查询） ====================
+
+    @staticmethod
+    def _jwxt_dead(resp):
+        """会话失效：正方可能回 302，也可能 200 + 登录页 HTML。"""
+        text = resp.text or ""
+        return (resp.status_code in (302, 901) or "login_slogin" in text
+                or "login_getPublicKey" in text)
+
+    def fetch_academic_status(self, student_id):
+        """学业情况：整体统计（GPA / 计划内外课程通过数）+ 各培养方案类别学分要求
+        + 类别课程明细（教学计划课程 / 非课程信息，含通识类）。"""
+        if not self.jwxt_session:
+            raise DektError("未登录教务系统")
+        base = self.jxw_base + "/jwglxt"
+        resp = _net("教务系统", lambda: self.jwxt_session.get(
+            base + acad.ACADEMIC_INDEX_PATH, timeout=30, allow_redirects=False,
+            headers={"Referer": base + "/xtgl/index_initMenu.html"}))
+        if self._jwxt_dead(resp):
+            self.jwxt_session = None
+            raise DektError("教务登录已失效，请重新查询")
+        parsed = acad.parse_academic_index(resp.text)
+        if parsed.get("login"):
+            self.jwxt_session = None
+            raise DektError("教务登录已失效，请重新查询")
+        err = str(parsed.get("error") or "").strip()
+        if err:
+            raise DektError("学业情况查询失败：" + err)
+
+        stats = parsed.get("statistics") or {}
+        cats = parsed.get("categories") or []
+        if not (str(parsed.get("sid") or "").strip() or stats.get("gpa") is not None
+                or stats.get("planed") is not None or stats.get("unplaned") is not None
+                or cats):
+            raise DektError("学业情况页面解析失败（页面结构可能已改版）：%s"
+                            % _page_snippet(resp.text))
+
+        sid = str(parsed.get("sid") or "")
+        # 只有叶子节点能取到课程明细；父节点集合从 parent 字段反推，避免白打一轮请求。
+        parent_ids = {str(c.get("parent") or "").strip()
+                      for c in cats if str(c.get("parent") or "").strip()}
+        params = parsed.get("params") or {}
+        for cat in cats:
+            cid = str(cat.get("id") or "").strip()
+            if not cid or cid in parent_ids:
+                continue
+            body = dict(params)
+            body.update({"fromXh_id": "", "xfyqjd_id": cid})
+            # 页面按节点属性 jdkcsx 选接口：'1' 走教学计划课程，其它走非课程信息；
+            # 空结果再互补兜底一次（部分节点属性缺失）。
+            is_plan = str(cat.get("jdkcsx") or "").strip() == "1"
+            first_path = acad.ACADEMIC_COURSES_PATH if is_plan else acad.ACADEMIC_NON_COURSE_PATH
+            try:
+                ok = self._fetch_academic_courses(cat, body, sid, first_path)
+                if ok and not cat.get("courses"):
+                    self._fetch_academic_courses(
+                        cat, body, sid,
+                        acad.ACADEMIC_NON_COURSE_PATH if is_plan else acad.ACADEMIC_COURSES_PATH)
+            except DektNetworkError:
+                raise
+            except DektError as e:
+                if any(h in str(e) for h in ("未登录", "失效", "过期")):
+                    raise
+                cat["courses"] = []
+                cat["coursesError"] = str(e)
+        for cat in cats:
+            cat.setdefault("courses", [])
+        return {"sid": sid, "statistics": stats, "categories": cats}
+
+    def _fetch_academic_courses(self, cat, body, sid, path):
+        """拉一个节点的课程明细；返回 False 表示响应不是 JSON（接口改版）。"""
+        resp = _net("教务系统", lambda: self.jwxt_session.post(
+            self.jxw_base + "/jwglxt" + path, data=body, timeout=30,
+            allow_redirects=False, headers={
+                "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+                "Referer": self.jxw_base
+                           + "/jwglxt/kbcx/xskbcxMobile_cxXsKb.html?gnmkdm=N2154&layout=default",
+                "X-Requested-With": "XMLHttpRequest",
+                "Origin": self.jxw_base,
+            }))
+        if self._jwxt_dead(resp):
+            self.jwxt_session = None
+            raise DektError("教务登录已失效，请重新查询")
+        data = self._parse_response(resp)
+        if not isinstance(data, (dict, list)):
+            cat["courses"] = []
+            cat["coursesError"] = "HTTP %s" % resp.status_code
+            return False
+        courses = acad.parse_academic_courses(data, sid=sid)
+        cat["courses"] = courses
+        if courses:
+            cat.pop("coursesError", None)
+        return True
 
     @staticmethod
     def _calc_gpa(grades):

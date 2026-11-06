@@ -307,6 +307,23 @@ def open_score(current_user: User = Depends(get_current_user_obj), db: OrmSessio
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@router.get("/api/campus-open/score/credits", tags=["校园开放接口"])
+def open_score_credits(current_user: User = Depends(get_current_user_obj),
+                       db: OrmSession = Depends(get_db)):
+    """第二课堂加分明细（每次活动参与记录 + 学分）"""
+    try:
+        return {"ok": True, "records": _tunnel_data(
+            current_user, db, "xg", lambda c, cr: c.fetch_credit_records())}
+    except _Connecting:
+        return _connecting()
+    except _NeedCaptcha as e:
+        return _need_captcha_payload(e)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @router.get("/api/campus-open/grades", tags=["校园开放接口"])
 def open_grades(request: Request, xnm: str = "", xqm: str = "",
                 current_user: User = Depends(get_current_user_obj),
@@ -327,12 +344,46 @@ def open_grades(request: Request, xnm: str = "", xqm: str = "",
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@router.get("/api/campus-open/academic", tags=["校园开放接口"])
+def open_academic(current_user: User = Depends(get_current_user_obj),
+                  db: OrmSession = Depends(get_db)):
+    """学业情况（学生学业情况查询 N105515）：整体统计 + 培养方案类别学分要求与课程明细。"""
+    try:
+        return {"ok": True, "data": _tunnel_data(
+            current_user, db, "jwxt", lambda c, cr: c.fetch_academic_status(cr.student_id))}
+    except _Connecting:
+        return _connecting()
+    except _NeedCaptcha as e:
+        return _need_captcha_payload(e)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @router.get("/api/campus-open/activities", tags=["校园开放接口"])
 def open_activities(current_user: User = Depends(get_current_user_obj), db: OrmSession = Depends(get_db)):
     """第二课堂活动列表（结构化看板视图）"""
     try:
         return {"ok": True, "data": _tunnel_data(
             current_user, db, "xg", lambda c, cr: act.activities_payload(c))}
+    except _Connecting:
+        return _connecting()
+    except _NeedCaptcha as e:
+        return _need_captcha_payload(e)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/api/campus-open/activities/signed", tags=["校园开放接口"])
+def open_signed_activities(current_user: User = Depends(get_current_user_obj),
+                           db: OrmSession = Depends(get_db)):
+    """已报名的第二课堂活动（学工「我的活动」）"""
+    try:
+        return {"ok": True, "activities": _tunnel_data(
+            current_user, db, "xg", lambda c, cr: c.fetch_signed_activities())}
     except _Connecting:
         return _connecting()
     except _NeedCaptcha as e:
