@@ -410,10 +410,27 @@ def open_activity_detail(aid: str, current_user: User = Depends(get_current_user
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
     hdms = str(data.get("hdms") or "")
-    return {"ok": True, "data": {"id": aid, "hdms": hdms,
-                                 "signed": str(data.get("bm")) == "1",
-                                 "quota": act.extract_quota(hdms),
-                                 "signup": act.extract_signup(hdms)}}
+    detail = {"id": aid, "signed": str(data.get("bm")) == "1"}
+    # 详情只覆盖它确实有的字段：客户端是 {...列表项, ...详情} 合并，
+    # 空值会把列表项里的名额 / 满员信息盖掉，导致点报名前判断不出「已人满」。
+    if hdms:
+        detail["hdms"] = hdms
+    quota = act.extract_quota(hdms)
+    if quota:
+        detail["quota"] = quota
+    signup = act.extract_signup(hdms)
+    if signup:
+        detail["signup"] = signup
+    enrolled = act.enrolled_of(data)
+    if enrolled is not None:
+        detail["enrolled"] = enrolled
+    status_code = str(data.get("hdbmzt") or "").strip()
+    if status_code:
+        detail["status_code"] = status_code
+    status_text = act.status_text_of(data)
+    if status_text:
+        detail["status_text"] = status_text
+    return {"ok": True, "data": detail}
 
 
 class OpenActivitySignupRequest(BaseModel):
