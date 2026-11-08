@@ -411,6 +411,14 @@ def open_activity_detail(aid: str, current_user: User = Depends(get_current_user
         raise HTTPException(status_code=400, detail=str(e))
     hdms = str(data.get("hdms") or "")
     detail = {"id": aid, "signed": str(data.get("bm")) == "1"}
+    # 元信息（名称 / 起止 / 报名窗口 / 地点 / 主办方 / 校区）：学校详情接口其实都
+    # 返回了，之前只透传说明——扫码直接进详情页时没有列表项，就会开天窗。
+    for src, dst in (("hdmc", "name"), ("hdkssj", "start"), ("hdjssj", "end"),
+                     ("hdbmkssj", "bm_start"), ("hdbmjssj", "bm_end"),
+                     ("hddd", "place"), ("zbfmc", "host"), ("xqmc", "campus")):
+        v = data.get(src)
+        if v is not None and str(v).strip():
+            detail[dst] = v
     # 详情只覆盖它确实有的字段：客户端是 {...列表项, ...详情} 合并，
     # 空值会把列表项里的名额 / 满员信息盖掉，导致点报名前判断不出「已人满」。
     if hdms:
