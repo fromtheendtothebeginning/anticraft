@@ -555,6 +555,33 @@ class DektClient:
         print(f"[hdsq] signup ok: hdid={hd_id} instance={instance_id}", flush=True)
         return {"instance_id": instance_id}
 
+    def sign_in_or_sign_out(self, hd_id, act_id):
+        """扫码签到 / 签退：POST /hdgl/flow/signInOrSignOut.zf {hdId, hdActId}。
+        参数来自活动详情页的签到二维码（…/hdgl/hdxq/qd/:hdId/:hdActId/:时间戳）；
+        学校同一个接口按场次（actCode signIn / signOut）判定方向，msg 为判定原文。
+        写操作：只提交一次、绝不重试。"""
+        if not self.session:
+            raise DektError("未登录")
+        resp = _net("学工系统", lambda: self.session.post(
+            self.xg_api + "/hdgl/flow/signInOrSignOut.zf",
+            data={"hdId": str(hd_id), "hdActId": str(act_id)},
+            timeout=30, allow_redirects=False,
+            headers={
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Origin": self.xg_base,
+                "Referer": self.xg_base + "/hdgl/hdydlist",
+                "X-Requested-With": "XMLHttpRequest",
+            }))
+        j = self._parse_response(resp)
+        if not isinstance(j, dict):
+            # 落到登录页等 HTML：会话已失效，清掉让下次查询重新登录
+            self.session = None
+            raise DektError("登录态失效，请重新查询")
+        if j.get("code") != 0:
+            raise DektError(j.get("msg") or "签到未成功(%s)" % resp.status_code)
+        print(f"[hdqd] sign ok: hdid={hd_id} act={act_id}", flush=True)
+        return {"msg": str(j.get("msg") or "")}
+
     # ==================== 校园卡动态码 ====================
 
     def fetch_ecard_qr(self, codetype="O5"):
