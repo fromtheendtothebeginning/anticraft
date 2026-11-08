@@ -7,6 +7,7 @@ import random
 import re
 import threading
 import time
+from datetime import datetime
 
 import requests
 
@@ -580,6 +581,33 @@ class DektClient:
         if j.get("code") != 0:
             raise DektError(j.get("msg") or "签到未成功(%s)" % resp.status_code)
         print(f"[hdqd] sign ok: hdid={hd_id} act={act_id}", flush=True)
+        return {"msg": str(j.get("msg") or "")}
+
+    def training_sign_in(self, hd_id, px_id):
+        """报名（培训）二维码的扫码签到：POST /hdgl/shsj/qd.zf {hdid, pxid, qdsj}。
+        参数来自报名管理页的报名二维码（…/hdgl/pxqd/:hdId/:pxId），与签到 / 签退的
+        signInOrSignOut 是不同接口。msg 为学校判定原文。写操作：只提交一次、绝不重试。"""
+        if not self.session:
+            raise DektError("未登录")
+        qdsj = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        resp = _net("学工系统", lambda: self.session.post(
+            self.xg_api + "/hdgl/shsj/qd.zf",
+            data={"hdid": str(hd_id), "pxid": str(px_id), "qdsj": qdsj},
+            timeout=30, allow_redirects=False,
+            headers={
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Origin": self.xg_base,
+                "Referer": self.xg_base + "/hdgl/hdydlist",
+                "X-Requested-With": "XMLHttpRequest",
+            }))
+        j = self._parse_response(resp)
+        if not isinstance(j, dict):
+            # 落到登录页等 HTML：会话已失效，清掉让下次查询重新登录
+            self.session = None
+            raise DektError("登录态失效，请重新查询")
+        if j.get("code") != 0:
+            raise DektError(j.get("msg") or "签到未成功(%s)" % resp.status_code)
+        print(f"[hdqd] train sign ok: hdid={hd_id} px={px_id}", flush=True)
         return {"msg": str(j.get("msg") or "")}
 
     # ==================== 校园卡动态码 ====================

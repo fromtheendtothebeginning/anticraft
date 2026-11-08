@@ -490,6 +490,32 @@ def open_activity_sign(req: OpenActivitySignRequest,
         raise HTTPException(status_code=400, detail=str(e))
 
 
+class OpenActivityTrainSignRequest(BaseModel):
+    hdId: str = Field(..., min_length=1, max_length=64, description="活动 ID（报名二维码路径段）")
+    pxId: str = Field(..., min_length=1, max_length=64,
+                      description="培训 / 报名场次 ID（报名二维码路径段）")
+
+
+@router.post("/api/campus-open/activities/train-sign", tags=["校园开放接口"])
+def open_activity_train_sign(req: OpenActivityTrainSignRequest,
+                             current_user: User = Depends(get_current_user_obj),
+                             db: OrmSession = Depends(get_db)):
+    """第二课堂报名（培训）二维码的扫码签到（学工 shsj/qd.zf）：返回 msg 为学校
+    判定原文。写操作：服务端只提交一次、绝不重试，客户端同样必须禁止自动重试"""
+    try:
+        return {"ok": True, "data": _tunnel_data(
+            current_user, db, "xg",
+            lambda c, cr: c.training_sign_in(req.hdId, req.pxId))}
+    except _Connecting:
+        return _connecting()
+    except _NeedCaptcha as e:
+        return _need_captcha_payload(e)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 class OpenWeekRequest(BaseModel):
     xnm: str = ""
     xqm: str = ""
