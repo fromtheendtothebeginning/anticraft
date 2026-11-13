@@ -258,8 +258,12 @@ def _ai_solve_captcha(captcha_b64, vision_info, timeout=30):
     return text or None
 
 
-def _try_auto_captcha(client, sess, captcha_b64, kind, user_id, db, **kw):
-    """尝试 AI 自动识别验证码。成功返回完整查询结果 dict，失败返回 None（让前端弹手动框）"""
+def _try_auto_captcha(client, sess, captcha_b64, kind, user_id, db, pending=None, **kw):
+    """尝试 AI 自动识别验证码。成功返回完整查询结果 dict，失败返回 None（让前端弹手动框）
+
+    pending 是本轮 prepare 出来的登录页/会话，显式传给 complete，避免并发查询
+    互相覆盖 client.pending 后拿错验证码。
+    """
     vision = _resolve_vision_model(user_id, db)
     if not vision:
         return None
@@ -268,17 +272,17 @@ def _try_auto_captcha(client, sess, captcha_b64, kind, user_id, db, **kw):
         return None
     try:
         if kind == "grades":
-            client.complete_jwxt_login(sess.student_id, captcha_text)
+            client.complete_jwxt_login(sess.student_id, captcha_text, pending=pending)
             data = client.fetch_grades(sess.student_id, xnm=kw.get("xnm", ""), xqm=kw.get("xqm", ""))
         elif kind == "ecard":
-            client.complete_login(sess.student_id, captcha_text)
+            client.complete_login(sess.student_id, captcha_text, pending=pending)
             data = client.fetch_ecard_qr(codetype=kw.get("codetype", "O5"))
         elif kind == "activities":
-            client.complete_login(sess.student_id, captcha_text)
+            client.complete_login(sess.student_id, captcha_text, pending=pending)
             from campus.activities import activities_payload
             data = activities_payload(client)
         else:
-            client.complete_login(sess.student_id, captcha_text)
+            client.complete_login(sess.student_id, captcha_text, pending=pending)
             data = {"score": client.fetch_score(sess.student_id)}
         return {"ok": True, "data": data, "student_id": client.student_id, "auto_captcha_used": True}
     except Exception as e:
@@ -306,6 +310,7 @@ def _auto_captcha_flow(client, sess, user_id, db, kind, prepare, req, attempts=2
         if pending is None:
             return None, None
         r = _try_auto_captcha(client, sess, pending.captcha, kind, user_id, db,
+                              pending=pending,
                               xnm=req.xnm, xqm=req.xqm, codetype=req.codetype)
         if r is not None:
             return r, None

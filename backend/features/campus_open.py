@@ -118,7 +118,7 @@ def _auto_login(client, sess, cred, user_id, db, mode):
                 if not text:
                     break  # 识图失败 → 降级手动
                 try:
-                    complete(sess.student_id, text)
+                    complete(sess.student_id, text, pending=pending)
                     return client
                 except DektError as e:
                     _log(f"campus-open {name}登录重试: {str(e)[:120]}")

@@ -82,7 +82,7 @@ def _auto_captcha_jwxt(client, sess, user_id, db, prepare, fetch, attempts=2):
         if not text:
             break
         try:
-            client.complete_jwxt_login(sess.student_id, text)
+            client.complete_jwxt_login(sess.student_id, text, pending=pending)
         except DektError as e:
             _log(f"timetable auto captcha rejected: {str(e)[:120]}")
             continue  # 验证码被拒 → 换一张新码再试

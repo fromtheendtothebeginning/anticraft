@@ -249,14 +249,21 @@ class DektClient:
         self.pending = pending
         return pending
 
-    def complete_login(self, student_id, captcha):
-        """用验证码完成 CAS 登录"""
+    def complete_login(self, student_id, captcha, pending=None):
+        """用验证码完成 CAS 登录。
+
+        pending 可由并发调用方显式传入：AI 识码是 prepare→识图→complete 三段，
+        中途另一个并发查询的 prepare 会覆盖 self.pending，导致拿别人的验证码/
+        会话去提交（表现为「无效的验证码」「验证码错误」）。手动填码不传，仍走
+        self.pending。
+        """
         with self.lock:
-            pending = self.pending
+            pending = pending or self.pending
             if pending is None:
                 raise DektError("登录会话已过期，请重新查询")
             if time.time() - pending.created_at > 300:
-                self.pending = None
+                if self.pending is pending:
+                    self.pending = None
                 raise DektError("验证码已过期，请重新查询")
             s = pending.http
             pwd = self._wisedu_aes(self._password, pending.salt)
@@ -266,7 +273,8 @@ class DektClient:
             resp = _net("统一身份认证", lambda: s.post(
                 post_url, data=data, timeout=30, allow_redirects=True,
                 headers={"Referer": pending.login_url}))
-            self.pending = None
+            if self.pending is pending:
+                self.pending = None
             cu = _net("统一身份认证", lambda: s.get(self.current_user, timeout=30))
             if '"code":0' not in cu.text:
                 err = ""
@@ -703,14 +711,15 @@ class DektClient:
             self.pending_kind = "jwxt"
             return pending
 
-    def complete_jwxt_login(self, student_id, captcha):
-        """用验证码完成教务系统登录"""
+    def complete_jwxt_login(self, student_id, captcha, pending=None):
+        """用验证码完成教务系统登录（pending 语义同 complete_login）"""
         with self.lock:
-            p = self.jwxt_pending
+            p = pending or self.jwxt_pending
             if p is None:
                 raise DektError("教务登录会话已过期，请重新查询")
             if time.time() - p.created_at > 300:
-                self.jwxt_pending = None
+                if self.jwxt_pending is p:
+                    self.jwxt_pending = None
                 raise DektError("验证码已过期，请重新查询")
             base = self.jxw_base + "/jwglxt"
             data = {"yhm": student_id, "mm": p.mm, "yzm": captcha or "",
@@ -721,11 +730,13 @@ class DektClient:
                     data=data, timeout=30, allow_redirects=False,
                     headers={"Content-Type": "application/x-www-form-urlencoded"}))
             except DektError:
+                if self.jwxt_pending is p:
+                    self.jwxt_pending = None
+                    self.pending_kind = None
+                raise
+            if self.jwxt_pending is p:
                 self.jwxt_pending = None
                 self.pending_kind = None
-                raise
-            self.jwxt_pending = None
-            self.pending_kind = None
             if r.status_code != 302:
                 err = ""
                 m = re.search(r'id="tips"[^>]*>(.*?)</', r.text, re.S)
